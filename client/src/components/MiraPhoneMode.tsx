@@ -12,8 +12,8 @@ interface MiraPhoneModeProps {
   onBack: () => void;
 }
 
-// Use copied video file with clean name
-const miraVideo = '/mira-avatar.mp4';
+// Use newest video file with no background
+const miraVideo = '/mira-avatar-newest.mp4';
 
 // Mesmerizing data visualization with thin lines
 const DataCluster = () => {

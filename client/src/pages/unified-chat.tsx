@@ -999,11 +999,13 @@ ${analysis.feedback}`;
         </div>
       </div>
 
-      {/* Mira Avatar - appears only during voice interactions */}
-      <MiraAvatar 
-        isPlaying={isMiraActive} 
-        audioElement={currentAudioRef.current}
-      />
+      {/* Mira Avatar - only appears in MIRA mode, not during regular voice interactions */}
+      {interactionMode === 'mira' && (
+        <MiraAvatar 
+          isPlaying={isMiraActive} 
+          audioElement={currentAudioRef.current}
+        />
+      )}
     </div>
   );
 }
