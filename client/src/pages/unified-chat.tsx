@@ -756,8 +756,16 @@ ${analysis.feedback}`;
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-8 h-screen flex flex-col min-h-0 cyber-grid">
         {/* Header with interaction modes */}
         <div className="mb-6">
-          <h1 className="text-4xl titillium-web-bold text-center mb-6 neon-text">
-            AskMira
+          <h1 className="text-4xl titillium-web-bold text-center mb-6 text-emerald-300 font-black tracking-wider relative">
+            <span className="relative z-10 bg-gradient-to-r from-emerald-300 via-green-300 to-emerald-400 bg-clip-text text-transparent drop-shadow-lg">
+              AskMira
+            </span>
+            <div className="absolute inset-0 text-emerald-400 blur-sm opacity-60 animate-pulse">
+              AskMira
+            </div>
+            <div className="absolute inset-0 text-emerald-300 blur-md opacity-40">
+              AskMira
+            </div>
           </h1>
           <div className="flex items-center justify-center space-x-4">
             <Button
