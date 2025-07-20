@@ -170,25 +170,211 @@ const DataCluster = () => {
           );
         })}
         
-        {/* Particle field */}
-        {Array.from({ length: 50 }).map((_, i) => (
+        {/* Enhanced particle field with multiple layers */}
+        {Array.from({ length: 80 }).map((_, i) => (
           <div
             key={`particle-${i}`}
-            className="absolute w-px h-px bg-emerald-300"
+            className="absolute rounded-full"
             style={{
+              width: `${1 + (i % 4)}px`,
+              height: `${1 + (i % 4)}px`,
+              backgroundColor: i % 4 === 0 ? '#10b981' : i % 4 === 1 ? '#06b6d4' : i % 4 === 2 ? '#8b5cf6' : '#f59e0b',
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              animation: `particle-drift ${5 + Math.random() * 5}s infinite linear`,
-              animationDelay: `${Math.random() * 3}s`,
-              opacity: 0.2 + Math.random() * 0.6,
-              filter: 'drop-shadow(0 0 2px rgba(16, 185, 129, 0.8))'
+              animation: `particle-drift ${4 + Math.random() * 6}s infinite linear`,
+              animationDelay: `${Math.random() * 4}s`,
+              opacity: 0.3 + Math.random() * 0.7,
+              filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))',
+              transform: `scale(${0.5 + Math.random() * 1.5})`
             }}
           />
         ))}
         
-        {/* Electromagnetic field lines */}
-        <div className="absolute inset-0 bg-gradient-radial from-emerald-400/5 via-transparent to-cyan-400/5 animate-pulse"></div>
-        <div className="absolute inset-0 bg-gradient-conic from-emerald-400/3 via-transparent to-emerald-400/3 animate-spin" style={{ animationDuration: '20s' }}></div>
+        {/* Rotating geometric elements */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={`rotating-geo-${i}`}
+              className="absolute border border-emerald-400/30"
+              style={{
+                width: `${60 + i * 20}px`,
+                height: `${60 + i * 20}px`,
+                borderRadius: i % 2 === 0 ? '50%' : '0%',
+                animation: `energy-pulse ${8 + i * 2}s infinite ease-in-out`,
+                animationDelay: `${i * 0.5}s`,
+                transform: `rotate(${i * 72}deg)`,
+                clipPath: i % 3 === 0 ? 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)' : 'none'
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Energy waves */}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={`energy-wave-${i}`}
+            className="absolute inset-0 border-2 border-emerald-400/20 rounded-full pointer-events-none"
+            style={{
+              animation: `energy-wave ${3 + i * 0.5}s infinite ease-out`,
+              animationDelay: `${i * 0.4}s`,
+              transform: 'scale(0)'
+            }}
+          />
+        ))}
+        
+        {/* Floating data nodes */}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div
+            key={`data-node-${i}`}
+            className="absolute w-3 h-3 border-2 border-cyan-400/60 rounded-full pointer-events-none"
+            style={{
+              left: `${20 + (i * 6)}%`,
+              top: `${30 + Math.sin(i * 0.5) * 40}%`,
+              animation: `floating-orb ${4 + (i % 3)}s infinite ease-in-out`,
+              animationDelay: `${i * 0.3}s`,
+              backgroundColor: i % 3 === 0 ? 'rgba(16, 185, 129, 0.3)' : i % 3 === 1 ? 'rgba(6, 182, 212, 0.3)' : 'rgba(139, 92, 246, 0.3)',
+              filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))',
+              transform: `rotate(${i * 30}deg) translateX(${40 + i * 5}px)`
+            }}
+          />
+        ))}
+        
+        {/* Electromagnetic field lines with enhanced effects */}
+        <div className="absolute inset-0 bg-gradient-radial from-emerald-400/8 via-transparent to-cyan-400/8 animate-pulse" style={{ animationDuration: '2s' }}></div>
+        <div className="absolute inset-0 bg-gradient-conic from-emerald-400/5 via-transparent to-emerald-400/5 animate-spin" style={{ animationDuration: '15s' }}></div>
+        <div className="absolute inset-0 bg-gradient-conic from-cyan-400/4 via-transparent to-purple-400/4 animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }}></div>
+        
+        {/* Neural pathways */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 2 }}>
+          <defs>
+            <linearGradient id="pathwayGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="rgba(16, 185, 129, 0.8)" />
+              <stop offset="50%" stopColor="rgba(6, 182, 212, 0.6)" />
+              <stop offset="100%" stopColor="rgba(139, 92, 246, 0.4)" />
+            </linearGradient>
+          </defs>
+          {Array.from({ length: 15 }).map((_, i) => {
+            const startX = 10 + (i * 6);
+            const startY = 20 + Math.sin(i * 0.3) * 30;
+            const midX = startX + 30 + Math.cos(i * 0.5) * 20;
+            const midY = startY + 20 + Math.sin(i * 0.7) * 25;
+            const endX = midX + 25 + Math.cos(i * 0.9) * 15;
+            const endY = midY + 30 + Math.sin(i * 1.1) * 20;
+            
+            return (
+              <path
+                key={`pathway-${i}`}
+                d={`M ${startX}% ${startY}% Q ${midX}% ${midY}% ${endX}% ${endY}%`}
+                stroke="url(#pathwayGradient)"
+                strokeWidth="1.5"
+                fill="none"
+                opacity="0.7"
+                style={{
+                  animation: `floating-orb ${5 + i * 0.3}s infinite ease-in-out`,
+                  animationDelay: `${i * 0.2}s`,
+                  strokeDasharray: '5,5',
+                  strokeDashoffset: `${i * 2}`
+                }}
+              />
+            );
+          })}
+        </svg>
+        
+        {/* Orbital elements */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {Array.from({ length: 4 }).map((_, orbit) => (
+            <div key={`orbit-${orbit}`} className="absolute">
+              {Array.from({ length: 3 + orbit }).map((_, satellite) => (
+                <div
+                  key={`satellite-${orbit}-${satellite}`}
+                  className="absolute w-2 h-2 bg-emerald-400/60 rounded-full"
+                  style={{
+                    animation: `energy-pulse ${6 + orbit}s infinite ease-in-out`,
+                    animationDelay: `${satellite * (2 / (3 + orbit))}s`,
+                    transform: `rotate(${satellite * (360 / (3 + orbit))}deg) translateX(${80 + orbit * 30}px) scale(${1 + orbit * 0.2})`,
+                    filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.8))'
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        
+        {/* Data pulse rings */}
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={`pulse-ring-${i}`}
+            className="absolute border border-cyan-400/25 rounded-full pointer-events-none"
+            style={{
+              width: `${40 + i * 15}px`,
+              height: `${40 + i * 15}px`,
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              animation: `energy-wave ${2 + i * 0.3}s infinite ease-out`,
+              animationDelay: `${i * 0.2}s`
+            }}
+          />
+        ))}
+        
+        {/* Dynamic trajectory lines */}
+        {Array.from({ length: 10 }).map((_, i) => {
+          const angle = (i * 36) * Math.PI / 180;
+          return (
+            <div
+              key={`trajectory-${i}`}
+              className="absolute w-px h-20 bg-gradient-to-t from-transparent via-purple-400/50 to-transparent pointer-events-none"
+              style={{
+                left: '50%',
+                top: '50%',
+                transformOrigin: 'bottom center',
+                transform: `rotate(${i * 36}deg) translateY(-60px)`,
+                animation: `stream-flow ${3 + i * 0.2}s infinite ease-in-out`,
+                animationDelay: `${i * 0.15}s`,
+                filter: 'blur(0.5px)'
+              }}
+            />
+          );
+        })}
+        
+        {/* Morphing geometric patterns */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {Array.from({ length: 3 }).map((_, layer) => (
+            <div
+              key={`morph-layer-${layer}`}
+              className="absolute border border-emerald-400/20 pointer-events-none"
+              style={{
+                width: `${100 + layer * 40}px`,
+                height: `${100 + layer * 40}px`,
+                borderRadius: '50%',
+                animation: `energy-pulse ${10 + layer * 3}s infinite ease-in-out`,
+                animationDelay: `${layer * 1}s`,
+                transform: `rotate(${layer * 120}deg)`,
+                clipPath: layer % 2 === 0 
+                  ? 'polygon(50% 0%, 0% 100%, 100% 100%)' 
+                  : 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)'
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Data flow indicators */}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={`flow-indicator-${i}`}
+            className="absolute flex items-center justify-center pointer-events-none"
+            style={{
+              left: `${30 + i * 8}%`,
+              top: `${25 + Math.sin(i) * 20}%`,
+              animation: `floating-orb ${4 + i * 0.5}s infinite ease-in-out`,
+              animationDelay: `${i * 0.4}s`
+            }}
+          >
+            <div className="w-1 h-1 bg-cyan-400/80 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+            <div className="w-1 h-1 bg-emerald-400/60 rounded-full animate-pulse ml-1" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-1 h-1 bg-purple-400/40 rounded-full animate-pulse ml-1" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        ))}
       </div>
     </div>
   );
