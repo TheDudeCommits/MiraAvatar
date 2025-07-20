@@ -46,6 +46,10 @@ export default function UnifiedChat() {
   // Mira Avatar state
   const [isMiraActive, setIsMiraActive] = useState(false);
   const [currentTranscription, setCurrentTranscription] = useState('');
+  
+  // iframe state
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { toast } = useToast();
 
@@ -61,6 +65,11 @@ export default function UnifiedChat() {
   useEffect(() => {
     if (interactionMode !== 'text' && !isConnected) {
       initializeVoiceChat();
+    }
+
+    // Reset iframe state when switching modes
+    if (interactionMode !== 'continuous') {
+      setIframeLoaded(false);
     }
 
     // Cleanup on mode change
@@ -830,24 +839,28 @@ ${analysis.feedback}`;
               {messages.length === 0 ? (
                 interactionMode === 'continuous' ? (
                   <div className="h-full w-full relative">
-                    {/* Neural Link Interface Overlay */}
-                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-                      <div className="bg-black/80 backdrop-blur-sm border border-emerald-400/50 rounded-lg px-4 py-2">
+                    {/* Neural Link Interface Overlay - faded and auto-hide */}
+                    <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none transition-all duration-1000 ${
+                      iframeLoaded ? 'opacity-0 translate-y-2' : 'opacity-60'
+                    }`}>
+                      <div className="bg-black/60 backdrop-blur-sm border border-emerald-400/30 rounded-lg px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <Bot className="w-5 h-5 text-emerald-400 animate-pulse" />
-                          <span className="titillium-web-semibold text-emerald-300 text-sm">Neural Link Interface Active</span>
+                          <Bot className="w-5 h-5 text-emerald-400/70 animate-pulse" />
+                          <span className="titillium-web-semibold text-emerald-300/70 text-sm">Neural Link Interface Active</span>
                         </div>
                       </div>
                     </div>
                     
                     {/* iframe fitting the chat interface perfectly */}
                     <iframe 
+                      ref={iframeRef}
                       src="https://bey.chat/3090f07a-5a09-4093-9114-d8c1332d7a74" 
                       width="100%" 
                       height="100%" 
                       frameBorder="0" 
                       allowFullScreen
                       allow="camera; microphone; fullscreen"
+                      onLoad={() => setIframeLoaded(true)}
                       style={{ 
                         border: 'none', 
                         maxWidth: '100%', 
