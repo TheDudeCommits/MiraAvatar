@@ -210,23 +210,29 @@ export function MiraPhoneMode({
     const video = videoRef.current;
     if (!video) return;
 
-    if (isMiraActive) {
+    console.log('Mira video effect - isMiraActive:', isMiraActive, 'isVideoReady:', isVideoReady);
+
+    if (isMiraActive && isVideoReady) {
       const playVideo = async () => {
         try {
+          console.log('Attempting to play Mira video...');
           video.currentTime = 0;
           video.playbackRate = 0.85;
           await video.play();
+          console.log('Mira video playing successfully');
         } catch (error) {
           console.error('Error playing Mira video:', error);
         }
       };
       playVideo();
     } else {
+      console.log('Pausing Mira video');
       video.pause();
     }
 
     const handleVideoEnd = () => {
-      if (isMiraActive) {
+      if (isMiraActive && isVideoReady) {
+        console.log('Mira video ended, looping...');
         video.currentTime = 0;
         video.playbackRate = 0.85;
         video.play();
@@ -235,7 +241,7 @@ export function MiraPhoneMode({
 
     video.addEventListener('ended', handleVideoEnd);
     return () => video.removeEventListener('ended', handleVideoEnd);
-  }, [isMiraActive]);
+  }, [isMiraActive, isVideoReady]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col justify-center items-center">
@@ -264,13 +270,22 @@ export function MiraPhoneMode({
             style={{ backgroundColor: 'transparent' }}
             muted
             playsInline
+            autoPlay
+            loop
+            preload="auto"
             onLoadedData={() => {
+              console.log('Mira video loaded successfully');
               setIsVideoReady(true);
               if (videoRef.current) {
                 videoRef.current.playbackRate = 0.85;
               }
             }}
-            onError={(e) => console.error('Mira video error:', e)}
+            onError={(e) => {
+              console.error('Mira video error:', e);
+              console.error('Video source:', miraVideo);
+            }}
+            onCanPlay={() => console.log('Mira video can play')}
+            onLoadStart={() => console.log('Mira video load started')}
           >
             <source src={miraVideo} type="video/mp4" />
           </video>
