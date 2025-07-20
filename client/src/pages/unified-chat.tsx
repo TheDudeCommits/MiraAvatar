@@ -828,12 +828,33 @@ ${analysis.feedback}`;
           <CardContent className="p-0 h-full flex flex-col">
             <ScrollArea className="flex-1 p-6 scroll-container scrollbar-thin max-h-[70vh] overflow-y-auto">
               {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <div className="text-center">
-                    <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p className="titillium-web-light">Initialize Neural Connection or Upload Data Package</p>
+                interactionMode === 'continuous' ? (
+                  <div className="h-full w-full flex flex-col">
+                    <div className="text-center mb-4">
+                      <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="titillium-web-light text-emerald-300 mb-4">Neural Link Interface Active</p>
+                    </div>
+                    <div className="flex-1 w-full">
+                      <iframe 
+                        src="https://bey.chat/3090f07a-5a09-4093-9114-d8c1332d7a74" 
+                        width="100%" 
+                        height="600px" 
+                        frameBorder="0" 
+                        allowFullScreen
+                        allow="camera; microphone; fullscreen"
+                        style={{ border: 'none', maxWidth: '100%', borderRadius: '12px' }}
+                        className="cyberpunk-border"
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <div className="text-center">
+                      <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p className="titillium-web-light">Initialize Neural Connection or Upload Data Package</p>
+                    </div>
+                  </div>
+                )
               ) : (
                 <div className="space-y-6">
                   {messages.map((message) => (
