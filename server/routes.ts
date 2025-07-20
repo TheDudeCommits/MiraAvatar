@@ -34,9 +34,51 @@ const audioUpload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  // Enhanced health check endpoint
+  app.get("/api/health", async (req, res) => {
+    try {
+      const healthStatus = {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'unknown',
+        services: {
+          database: false,
+          openai: !!process.env.OPENAI_API_KEY,
+          elevenlabs: !!process.env.ELEVENLABS_API_KEY
+        },
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: process.version
+      };
+
+      // Test database connection
+      try {
+        await storage.healthCheck();
+        healthStatus.services.database = true;
+      } catch (error) {
+        console.error('Database health check failed:', error);
+        healthStatus.services.database = false;
+      }
+
+      const allServicesHealthy = Object.values(healthStatus.services).every(Boolean);
+      
+      if (allServicesHealthy) {
+        res.json(healthStatus);
+      } else {
+        res.status(503).json({
+          ...healthStatus,
+          status: "degraded",
+          message: "Some services are not available"
+        });
+      }
+    } catch (error) {
+      console.error('Health check error:', error);
+      res.status(500).json({
+        status: "error",
+        timestamp: new Date().toISOString(),
+        message: "Health check failed"
+      });
+    }
   });
 
   // Upload and analyze CV (unified chat endpoint)

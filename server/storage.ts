@@ -28,6 +28,7 @@ export interface IStorage {
   createVoiceSession(session: InsertVoiceSession): Promise<VoiceSession>;
   getVoiceSession(sessionId: string): Promise<VoiceSession | undefined>;
   updateVoiceSession(sessionId: string, updates: Partial<VoiceSession>): Promise<VoiceSession | undefined>;
+  healthCheck(): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -122,6 +123,17 @@ export class DatabaseStorage implements IStorage {
       .where(eq(voiceSessions.sessionId, sessionId))
       .returning();
     return updated || undefined;
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      // Simple query to test database connectivity
+      await db.select().from(users).limit(1);
+      return true;
+    } catch (error) {
+      console.error('Database health check failed:', error);
+      return false;
+    }
   }
 }
 
