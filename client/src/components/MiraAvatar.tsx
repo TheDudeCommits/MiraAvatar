@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-// Use copied video file with clean name
-const miraVideo = '/mira-avatar.mp4';
+// Use new video file with no background
+const miraVideo = '/mira-avatar-new.mp4';
 
 interface MiraAvatarProps {
   isPlaying: boolean;
