@@ -829,23 +829,33 @@ ${analysis.feedback}`;
             <ScrollArea className="flex-1 p-6 scroll-container scrollbar-thin max-h-[70vh] overflow-y-auto">
               {messages.length === 0 ? (
                 interactionMode === 'continuous' ? (
-                  <div className="h-full w-full flex flex-col">
-                    <div className="text-center mb-4">
-                      <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p className="titillium-web-light text-emerald-300 mb-4">Neural Link Interface Active</p>
+                  <div className="h-full w-full relative">
+                    {/* Neural Link Interface Overlay */}
+                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+                      <div className="bg-black/80 backdrop-blur-sm border border-emerald-400/50 rounded-lg px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <Bot className="w-5 h-5 text-emerald-400 animate-pulse" />
+                          <span className="titillium-web-semibold text-emerald-300 text-sm">Neural Link Interface Active</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 w-full">
-                      <iframe 
-                        src="https://bey.chat/3090f07a-5a09-4093-9114-d8c1332d7a74" 
-                        width="100%" 
-                        height="600px" 
-                        frameBorder="0" 
-                        allowFullScreen
-                        allow="camera; microphone; fullscreen"
-                        style={{ border: 'none', maxWidth: '100%', borderRadius: '12px' }}
-                        className="cyberpunk-border"
-                      />
-                    </div>
+                    
+                    {/* iframe fitting the chat interface perfectly */}
+                    <iframe 
+                      src="https://bey.chat/3090f07a-5a09-4093-9114-d8c1332d7a74" 
+                      width="100%" 
+                      height="100%" 
+                      frameBorder="0" 
+                      allowFullScreen
+                      allow="camera; microphone; fullscreen"
+                      style={{ 
+                        border: 'none', 
+                        maxWidth: '100%', 
+                        borderRadius: '12px',
+                        minHeight: '500px'
+                      }}
+                      className="cyberpunk-border w-full h-full"
+                    />
                   </div>
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
