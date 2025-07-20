@@ -262,11 +262,155 @@ export function MiraPhoneMode({
           <DataCluster />
         </div>
         
-        {/* Mira video with smooth fade-in */}
+        {/* Mira video with smooth fade-in and animated elements */}
         <div className={`absolute inset-0 transition-opacity duration-1000 ${isMiraActive ? 'opacity-100' : 'opacity-0'} flex items-center justify-center`}>
+          {/* Animated background elements when video is active */}
+          {isMiraActive && (
+            <>
+              {/* Rotating energy rings */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-96 h-96 border border-emerald-400/20 rounded-full animate-spin" style={{ animationDuration: '20s' }}></div>
+                <div className="absolute w-80 h-80 border border-cyan-400/15 rounded-full animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }}></div>
+                <div className="absolute w-64 h-64 border border-emerald-300/25 rounded-full animate-spin" style={{ animationDuration: '10s' }}></div>
+              </div>
+              
+              {/* Pulsing energy field */}
+              <div className="absolute inset-0 bg-gradient-radial from-emerald-400/10 via-transparent to-cyan-400/5 animate-pulse pointer-events-none" style={{ animationDuration: '3s' }}></div>
+              
+              {/* Floating energy orbs */}
+              {[...Array(12)].map((_, i) => (
+                <div
+                  key={`energy-orb-${i}`}
+                  className="absolute rounded-full pointer-events-none"
+                  style={{
+                    width: `${4 + (i % 3) * 2}px`,
+                    height: `${4 + (i % 3) * 2}px`,
+                    backgroundColor: i % 3 === 0 ? '#10b981' : i % 3 === 1 ? '#06b6d4' : '#8b5cf6',
+                    left: `${15 + (i * 7)}%`,
+                    top: `${25 + Math.sin(i * 0.8) * 30}%`,
+                    animation: `floating-orb ${3 + (i % 4)}s infinite ease-in-out`,
+                    animationDelay: `${i * 0.3}s`,
+                    filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.8))',
+                    transform: `rotate(${i * 30}deg) translateX(${30 + i * 8}px)`
+                  }}
+                />
+              ))}
+              
+              {/* Hexagonal energy pattern */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={`hex-${i}`}
+                    className="absolute w-32 h-32 border border-emerald-400/20 pointer-events-none"
+                    style={{
+                      clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+                      animation: `energy-pulse ${8 + i * 2}s infinite ease-in-out`,
+                      animationDelay: `${i * 1.2}s`,
+                      transform: `rotate(${i * 60}deg) scale(${0.8 + i * 0.1})`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* Energy streams */}
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={`stream-${i}`}
+                  className="absolute w-px h-24 bg-gradient-to-b from-emerald-400/60 via-cyan-400/40 to-transparent pointer-events-none"
+                  style={{
+                    left: `${25 + i * 16.67}%`,
+                    top: `${20 + Math.sin(i) * 10}%`,
+                    animation: `floating-orb ${4 + i}s infinite ease-in-out`,
+                    animationDelay: `${i * 0.8}s`,
+                    transform: `rotate(${i * 90}deg)`,
+                    filter: 'blur(0.5px)'
+                  }}
+                />
+              ))}
+              
+              {/* Dynamic corner accents */}
+              <div className="absolute top-4 left-4 w-12 h-12 border-l-2 border-t-2 border-emerald-400/40 animate-pulse pointer-events-none"></div>
+              <div className="absolute top-4 right-4 w-12 h-12 border-r-2 border-t-2 border-emerald-400/40 animate-pulse pointer-events-none" style={{ animationDelay: '0.5s' }}></div>
+              <div className="absolute bottom-4 left-4 w-12 h-12 border-l-2 border-b-2 border-emerald-400/40 animate-pulse pointer-events-none" style={{ animationDelay: '1s' }}></div>
+              <div className="absolute bottom-4 right-4 w-12 h-12 border-r-2 border-b-2 border-emerald-400/40 animate-pulse pointer-events-none" style={{ animationDelay: '1.5s' }}></div>
+              
+              {/* Scanning lines effect */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute w-full h-0.5 bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" 
+                     style={{ 
+                       top: '25%',
+                       animation: 'scan-line 4s infinite linear'
+                     }}></div>
+                <div className="absolute w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent" 
+                     style={{ 
+                       top: '75%',
+                       animation: 'scan-line 6s infinite linear reverse',
+                       animationDelay: '2s'
+                     }}></div>
+                <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-purple-400/30 to-transparent" 
+                     style={{ 
+                       top: '50%',
+                       animation: 'scan-line 8s infinite linear',
+                       animationDelay: '4s'
+                     }}></div>
+              </div>
+              
+              {/* Digital artifacts */}
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={`artifact-${i}`}
+                    className="absolute w-2 h-2 border border-emerald-400/40 pointer-events-none"
+                    style={{
+                      left: `${10 + i * 15}%`,
+                      top: `${15 + (i % 2) * 60}%`,
+                      animation: `energy-pulse ${5 + i}s infinite ease-in-out`,
+                      animationDelay: `${i * 0.7}s`,
+                      transform: `rotate(45deg) scale(${0.5 + (i % 3) * 0.3})`
+                    }}
+                  />
+                ))}
+              </div>
+              
+              {/* Neural network connections */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+                <defs>
+                  <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="rgba(16, 185, 129, 0.6)" />
+                    <stop offset="50%" stopColor="rgba(6, 182, 212, 0.4)" />
+                    <stop offset="100%" stopColor="rgba(139, 92, 246, 0.2)" />
+                  </linearGradient>
+                </defs>
+                {[...Array(8)].map((_, i) => {
+                  const startX = 20 + (i * 12);
+                  const startY = 30 + Math.sin(i) * 20;
+                  const endX = startX + 40 + Math.cos(i) * 30;
+                  const endY = startY + 40 + Math.sin(i + 1) * 25;
+                  
+                  return (
+                    <line
+                      key={`connection-${i}`}
+                      x1={`${startX}%`}
+                      y1={`${startY}%`}
+                      x2={`${endX}%`}
+                      y2={`${endY}%`}
+                      stroke="url(#connectionGradient)"
+                      strokeWidth="1"
+                      opacity="0.6"
+                      style={{
+                        animation: `floating-orb ${6 + i}s infinite ease-in-out`,
+                        animationDelay: `${i * 0.5}s`
+                      }}
+                    />
+                  );
+                })}
+              </svg>
+            </>
+          )}
+          
           <video
             ref={videoRef}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full object-contain relative z-10"
             style={{ backgroundColor: 'transparent' }}
             muted
             playsInline
