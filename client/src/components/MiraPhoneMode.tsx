@@ -20,11 +20,11 @@ const DataCluster = () => {
   return (
     <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
       <div className="relative w-full h-full">
-        {/* Central nexus - subtle */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-white/40 rounded-full animate-pulse shadow-sm shadow-white/20" style={{ animationDuration: '4s' }}></div>
+        {/* Central nexus */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/80"></div>
         
         {/* Complex web network with thin lines */}
-        <svg className="absolute inset-0 w-full h-full" style={{ filter: 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.1))' }}>
+        <svg className="absolute inset-0 w-full h-full" style={{ filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))' }}>
           {/* Radial spokes */}
           {Array.from({ length: 16 }).map((_, i) => {
             const angle = (i * 22.5) * Math.PI / 180;
@@ -40,12 +40,12 @@ const DataCluster = () => {
                 y1={centerY}
                 x2={endX}
                 y2={endY}
-                stroke="rgba(255, 255, 255, 0.08)"
-                strokeWidth="0.3"
+                stroke="rgba(16, 185, 129, 0.3)"
+                strokeWidth="0.5"
                 className="animate-pulse"
                 style={{ 
-                  animationDelay: `${i * 0.5}s`,
-                  animationDuration: `${8 + (i % 4) * 2}s`
+                  animationDelay: `${i * 0.1}s`,
+                  animationDuration: `${2 + (i % 4)}s`
                 }}
               />
             );
@@ -73,12 +73,12 @@ const DataCluster = () => {
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke="rgba(255, 255, 255, 0.06)"
-                  strokeWidth="0.3"
+                  stroke="rgba(16, 185, 129, 0.25)"
+                  strokeWidth="0.5"
                   className="animate-pulse"
                   style={{ 
-                    animationDelay: `${ring * 1 + point * 0.2}s`,
-                    animationDuration: `${10 + ring * 2}s`
+                    animationDelay: `${ring * 0.2 + point * 0.05}s`,
+                    animationDuration: `${3 + ring * 0.3}s`
                   }}
                 />
               );
@@ -105,12 +105,12 @@ const DataCluster = () => {
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke="rgba(255, 255, 255, 0.04)"
-                strokeWidth="0.2"
+                stroke="rgba(16, 185, 129, 0.15)"
+                strokeWidth="0.5"
                 className="animate-pulse"
                 style={{ 
-                  animationDelay: `${i * 0.3}s`,
-                  animationDuration: `${12 + (i % 5) * 3}s`
+                  animationDelay: `${i * 0.05}s`,
+                  animationDuration: `${2 + (i % 5)}s`
                 }}
               />
             );
@@ -138,12 +138,12 @@ const DataCluster = () => {
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke="rgba(255, 255, 255, 0.03)"
-                  strokeWidth="0.2"
+                  stroke="rgba(6, 214, 160, 0.2)"
+                  strokeWidth="0.5"
                   className="animate-pulse"
                   style={{ 
-                    animationDelay: `${spiral * 2 + i * 0.1}s`,
-                    animationDuration: `${15 + spiral * 3}s`
+                    animationDelay: `${spiral * 0.5 + i * 0.02}s`,
+                    animationDuration: `${4 + spiral}s`
                   }}
                 />
               );
@@ -157,90 +157,92 @@ const DataCluster = () => {
           return (
             <div
               key={`stream-${i}`}
-              className="absolute w-px h-20 bg-gradient-to-t from-transparent via-white/20 to-transparent"
+              className="absolute w-px h-32 bg-gradient-to-t from-transparent via-emerald-400 to-transparent"
               style={{
                 left: '50%',
                 top: '50%',
                 transformOrigin: 'bottom center',
-                transform: `rotate(${i * 45}deg) translateY(-60px)`,
-                animation: `stream-flow ${8 + i * 2}s infinite ease-in-out`,
-                animationDelay: `${i * 1}s`
+                transform: `rotate(${i * 45}deg) translateY(-100px)`,
+                animation: `stream-flow ${2 + i * 0.3}s infinite ease-in-out`,
+                animationDelay: `${i * 0.2}s`
               }}
             />
           );
         })}
         
-        {/* Star field with tiny glowy dots */}
-        {Array.from({ length: 200 }).map((_, i) => (
+        {/* Enhanced particle field with multiple layers */}
+        {Array.from({ length: 80 }).map((_, i) => (
           <div
-            key={`star-${i}`}
-            className="absolute rounded-full pointer-events-none"
+            key={`particle-${i}`}
+            className="absolute rounded-full"
             style={{
-              width: `${0.5 + Math.random() * 1.5}px`,
-              height: `${0.5 + Math.random() * 1.5}px`,
-              backgroundColor: '#ffffff',
+              width: `${1 + (i % 4)}px`,
+              height: `${1 + (i % 4)}px`,
+              backgroundColor: i % 4 === 0 ? '#10b981' : i % 4 === 1 ? '#06b6d4' : i % 4 === 2 ? '#8b5cf6' : '#f59e0b',
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
-              animation: `star-twinkle ${8 + Math.random() * 12}s infinite ease-in-out`,
-              animationDelay: `${Math.random() * 8}s`,
-              opacity: 0.2 + Math.random() * 0.6,
-              filter: 'drop-shadow(0 0 2px rgba(255, 255, 255, 0.6))',
-              transform: `scale(${0.3 + Math.random() * 0.7})`
+              animation: `particle-drift ${4 + Math.random() * 6}s infinite linear`,
+              animationDelay: `${Math.random() * 4}s`,
+              opacity: 0.3 + Math.random() * 0.7,
+              filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.8))',
+              transform: `scale(${0.5 + Math.random() * 1.5})`
             }}
           />
         ))}
         
-        {/* Subtle geometric elements with slower movement */}
+        {/* Rotating geometric elements */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={`rotating-geo-${i}`}
-              className="absolute border border-emerald-400/10"
+              className="absolute border border-emerald-400/30"
               style={{
-                width: `${80 + i * 30}px`,
-                height: `${80 + i * 30}px`,
-                borderRadius: '50%',
-                animation: `slow-rotation ${30 + i * 10}s infinite linear`,
-                animationDelay: `${i * 2}s`,
-                transform: `rotate(${i * 120}deg)`
+                width: `${60 + i * 20}px`,
+                height: `${60 + i * 20}px`,
+                borderRadius: i % 2 === 0 ? '50%' : '0%',
+                animation: `energy-pulse ${8 + i * 2}s infinite ease-in-out`,
+                animationDelay: `${i * 0.5}s`,
+                transform: `rotate(${i * 72}deg)`,
+                clipPath: i % 3 === 0 ? 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)' : 'none'
               }}
             />
           ))}
         </div>
         
-        {/* Subtle energy waves */}
-        {Array.from({ length: 3 }).map((_, i) => (
+        {/* Energy waves */}
+        {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={`energy-wave-${i}`}
-            className="absolute inset-0 border border-emerald-400/5 rounded-full pointer-events-none"
+            className="absolute inset-0 border-2 border-emerald-400/20 rounded-full pointer-events-none"
             style={{
-              animation: `slow-energy-wave ${15 + i * 5}s infinite ease-out`,
-              animationDelay: `${i * 3}s`,
+              animation: `energy-wave ${3 + i * 0.5}s infinite ease-out`,
+              animationDelay: `${i * 0.4}s`,
               transform: 'scale(0)'
             }}
           />
         ))}
         
-        {/* Subtle data nodes */}
-        {Array.from({ length: 8 }).map((_, i) => (
+        {/* Floating data nodes */}
+        {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={`data-node-${i}`}
-            className="absolute w-1 h-1 border border-white/20 rounded-full pointer-events-none"
+            className="absolute w-3 h-3 border-2 border-cyan-400/60 rounded-full pointer-events-none"
             style={{
-              left: `${20 + (i * 8)}%`,
+              left: `${20 + (i * 6)}%`,
               top: `${30 + Math.sin(i * 0.5) * 40}%`,
-              animation: `slow-float ${12 + (i % 3) * 4}s infinite ease-in-out`,
-              animationDelay: `${i * 1}s`,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              filter: 'drop-shadow(0 0 3px rgba(255, 255, 255, 0.3))',
-              transform: `rotate(${i * 45}deg) translateX(${30 + i * 4}px)`
+              animation: `floating-orb ${4 + (i % 3)}s infinite ease-in-out`,
+              animationDelay: `${i * 0.3}s`,
+              backgroundColor: i % 3 === 0 ? 'rgba(16, 185, 129, 0.3)' : i % 3 === 1 ? 'rgba(6, 182, 212, 0.3)' : 'rgba(139, 92, 246, 0.3)',
+              filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))',
+              transform: `rotate(${i * 30}deg) translateX(${40 + i * 5}px)`
             }}
           />
         ))}
         
-        {/* Subtle electromagnetic field lines */}
-        <div className="absolute inset-0 bg-gradient-radial from-white/2 via-transparent to-emerald-400/2 animate-pulse pointer-events-none" style={{ animationDuration: '8s' }}></div>
-        <div className="absolute inset-0 bg-gradient-conic from-white/1 via-transparent to-white/1 animate-spin pointer-events-none" style={{ animationDuration: '60s' }}></div>
+        {/* Electromagnetic field lines with enhanced effects */}
+        <div className="absolute inset-0 bg-gradient-radial from-emerald-400/8 via-transparent to-cyan-400/8 animate-pulse" style={{ animationDuration: '2s' }}></div>
+        <div className="absolute inset-0 bg-gradient-conic from-emerald-400/5 via-transparent to-emerald-400/5 animate-spin" style={{ animationDuration: '15s' }}></div>
+        <div className="absolute inset-0 bg-gradient-conic from-cyan-400/4 via-transparent to-purple-400/4 animate-spin" style={{ animationDuration: '25s', animationDirection: 'reverse' }}></div>
         
         {/* Neural pathways */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 2 }}>
@@ -278,15 +280,101 @@ const DataCluster = () => {
           })}
         </svg>
         
-
+        {/* Orbital elements */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {Array.from({ length: 4 }).map((_, orbit) => (
+            <div key={`orbit-${orbit}`} className="absolute">
+              {Array.from({ length: 3 + orbit }).map((_, satellite) => (
+                <div
+                  key={`satellite-${orbit}-${satellite}`}
+                  className="absolute w-2 h-2 bg-emerald-400/60 rounded-full"
+                  style={{
+                    animation: `energy-pulse ${6 + orbit}s infinite ease-in-out`,
+                    animationDelay: `${satellite * (2 / (3 + orbit))}s`,
+                    transform: `rotate(${satellite * (360 / (3 + orbit))}deg) translateX(${80 + orbit * 30}px) scale(${1 + orbit * 0.2})`,
+                    filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.8))'
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
         
-
+        {/* Data pulse rings */}
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={`pulse-ring-${i}`}
+            className="absolute border border-cyan-400/25 rounded-full pointer-events-none"
+            style={{
+              width: `${40 + i * 15}px`,
+              height: `${40 + i * 15}px`,
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              animation: `energy-wave ${2 + i * 0.3}s infinite ease-out`,
+              animationDelay: `${i * 0.2}s`
+            }}
+          />
+        ))}
         
-
+        {/* Dynamic trajectory lines */}
+        {Array.from({ length: 10 }).map((_, i) => {
+          const angle = (i * 36) * Math.PI / 180;
+          return (
+            <div
+              key={`trajectory-${i}`}
+              className="absolute w-px h-20 bg-gradient-to-t from-transparent via-purple-400/50 to-transparent pointer-events-none"
+              style={{
+                left: '50%',
+                top: '50%',
+                transformOrigin: 'bottom center',
+                transform: `rotate(${i * 36}deg) translateY(-60px)`,
+                animation: `stream-flow ${3 + i * 0.2}s infinite ease-in-out`,
+                animationDelay: `${i * 0.15}s`,
+                filter: 'blur(0.5px)'
+              }}
+            />
+          );
+        })}
         
-
+        {/* Morphing geometric patterns */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          {Array.from({ length: 3 }).map((_, layer) => (
+            <div
+              key={`morph-layer-${layer}`}
+              className="absolute border border-emerald-400/20 pointer-events-none"
+              style={{
+                width: `${100 + layer * 40}px`,
+                height: `${100 + layer * 40}px`,
+                borderRadius: '50%',
+                animation: `energy-pulse ${10 + layer * 3}s infinite ease-in-out`,
+                animationDelay: `${layer * 1}s`,
+                transform: `rotate(${layer * 120}deg)`,
+                clipPath: layer % 2 === 0 
+                  ? 'polygon(50% 0%, 0% 100%, 100% 100%)' 
+                  : 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)'
+              }}
+            />
+          ))}
+        </div>
         
-
+        {/* Data flow indicators */}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={`flow-indicator-${i}`}
+            className="absolute flex items-center justify-center pointer-events-none"
+            style={{
+              left: `${30 + i * 8}%`,
+              top: `${25 + Math.sin(i) * 20}%`,
+              animation: `floating-orb ${4 + i * 0.5}s infinite ease-in-out`,
+              animationDelay: `${i * 0.4}s`
+            }}
+          >
+            <div className="w-1 h-1 bg-cyan-400/80 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+            <div className="w-1 h-1 bg-emerald-400/60 rounded-full animate-pulse ml-1" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-1 h-1 bg-purple-400/40 rounded-full animate-pulse ml-1" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        ))}
       </div>
     </div>
   );
