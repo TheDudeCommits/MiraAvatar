@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom video blending for seamless MIRA avatar */
+video[data-mira-avatar] {
+  mix-blend-mode: screen !important;
+  background: transparent !important;
+  backdrop-filter: blur(0px);
+}
+
+/* Remove any video player chrome/controls background */
+video::-webkit-media-controls-panel {
+  background: transparent !important;
+}
+
+video::-webkit-media-controls {
+  background: transparent !important;
+}
+
 :root {
   --background: hsl(0, 0%, 4%);
   --foreground: hsl(0, 0%, 95%);

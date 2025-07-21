@@ -596,8 +596,17 @@ export function MiraPhoneMode({
           
           <video
             ref={videoRef}
-            className="max-w-full max-h-full object-contain relative z-10"
-            style={{ backgroundColor: 'transparent' }}
+            data-mira-avatar="true"
+            className="max-w-full max-h-full object-contain relative z-20"
+            style={{ 
+              backgroundColor: 'transparent',
+              mixBlendMode: 'screen',
+              filter: 'brightness(1.4) contrast(1.3) saturate(1.2)',
+              maskImage: 'radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 90%)',
+              webkitMaskImage: 'radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 90%)',
+              border: 'none',
+              outline: 'none'
+            }}
             muted
             playsInline
             autoPlay
