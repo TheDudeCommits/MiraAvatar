@@ -107,7 +107,12 @@ export class OpenAIService {
         temperature: 0.0 // Optimized for speed
       });
 
-      const userText = transcription.text;
+      // Handle the transcription result properly for voice input
+      const userText = typeof transcription === 'string' ? transcription : transcription.text || '';
+      
+      if (!userText || userText.trim() === '') {
+        throw new Error('Voice transcription returned empty result - please try speaking again');
+      }
       
       // Generate FASTER AI response
       const response = await openai.chat.completions.create({
@@ -155,8 +160,15 @@ export class OpenAIService {
         temperature: 0.0 // Optimized for speed
       });
 
+      // Handle the transcription result properly
+      const transcriptionText = typeof transcription === 'string' ? transcription : transcription.text || '';
+      
+      if (!transcriptionText || transcriptionText.trim() === '') {
+        throw new Error('Transcription returned empty or invalid result');
+      }
+
       return {
-        text: transcription.text
+        text: transcriptionText
       };
     } catch (error) {
       console.error("Audio transcription error:", error);
@@ -164,33 +176,48 @@ export class OpenAIService {
     }
   }
 
-  // OPTIMIZED Chat with conversation context
+  // FIXED Chat with conversation context
   async chatWithContext(message: string, conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<string> {
     try {
-      // Build context-aware messages (limited for speed)
-      const recentHistory = conversationHistory.slice(-4); // Only last 2 exchanges for speed
+      // Validate input message
+      if (!message || typeof message !== 'string' || message.trim() === '') {
+        throw new Error('Invalid message: message cannot be empty or null');
+      }
+
+      // Build context-aware messages with proper validation
+      const recentHistory = conversationHistory.slice(-4).filter(msg => 
+        msg.content && typeof msg.content === 'string' && msg.content.trim() !== ''
+      );
+      
       const messages = [
         {
           role: "system" as const,
-          content: "You are Mira, a career coach. Be helpful and concise. Keep responses under 60 words for voice interactions."
+          content: "You are Mira, a career coach. Be helpful and concise. Keep responses under 100 words for voice interactions."
         },
         ...recentHistory,
         {
           role: "user" as const,
-          content: message
+          content: message.trim()
         }
       ];
 
+      console.log('OpenAI context chat messages:', messages.map(m => ({ role: m.role, content: m.content?.substring(0, 50) + '...' })));
+
       const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // Fastest model
+        model: "gpt-4o-mini",
         messages: messages,
-        temperature: 0.2, // Optimized for speed and consistency
-        max_tokens: 60 // Very short for speed
+        temperature: 0.3,
+        max_tokens: 150
       });
 
-      return response.choices[0].message.content || "I understand.";
+      const result = response.choices[0].message.content;
+      if (!result || typeof result !== 'string') {
+        throw new Error('OpenAI returned invalid response');
+      }
+
+      return result;
     } catch (error) {
-      console.error("Chat with context error:", error);
+      console.error("OpenAI context chat error:", error);
       throw new Error(`Failed to chat with context: ${error}`);
     }
   }
