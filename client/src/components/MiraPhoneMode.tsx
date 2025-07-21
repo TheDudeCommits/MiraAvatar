@@ -16,8 +16,8 @@ export interface MiraPhoneModeRef {
   handleVoiceResponse: (audioUrl: string, transcript: string, onAudioEnd?: () => void) => Promise<void>;
 }
 
-// Use newest video file with no background
-const miraVideo = '/mira-avatar-newest.mp4';
+// Use the correct video file from attached assets
+const miraVideo = '/attached_assets/Mira CyberPunk BG Talking_1753109718925.mp4';
 
 // Elegant starfield visualization with distant glowing stars
 const DataCluster = () => {
@@ -266,29 +266,26 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
 
       await audioReadyPromise;
 
-      // Ensure video is preloaded and ready for instant playback
-      if (videoRef.current && isVideoPreloaded && isVideoReady) {
-        console.log('🎬 Both audio and video ready - starting instant synchronized playback');
+      // Force video to play regardless of ready state - remove all conditionals
+      if (videoRef.current) {
+        console.log('🎬 Starting synchronized audio-video playback');
         
         // Reset video position and prepare for smooth start
         videoRef.current.currentTime = 0;
-        
-        // Start both immediately with no Promise.all delay - ensure video is unpaused first
         videoRef.current.playbackRate = 0.85;
         
-        // Force video to start from beginning with instant play
-        const videoPlayPromise = videoRef.current.play();
-        const audioPlayPromise = audio.play();
-        
-        Promise.all([videoPlayPromise, audioPlayPromise]).then(() => {
-          console.log('✅ Instant synchronized playback started');
-        }).catch((error) => {
-          console.log('Playback may require user interaction:', error);
+        // Start both immediately - video first, then audio
+        try {
+          await videoRef.current.play();
+          await audio.play();
+          console.log('✅ Synchronized playback started');
+        } catch (error) {
+          console.log('Playback error:', error);
           // Still try to play audio even if video fails
           audio.play().catch(e => console.log('Audio fallback:', e));
-        });
+        }
       } else {
-        console.log('⚡ Starting audio-only playback (video not ready)');
+        console.log('⚡ Starting audio-only playback (no video element)');
         await audio.play();
       }
 
@@ -534,12 +531,8 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
               if (!isVideoReady && videoRef.current) {
                 setIsVideoReady(true);
                 videoRef.current.playbackRate = 0.85;
-                // Start playing immediately to prevent frozen frame
-                videoRef.current.play().then(() => {
-                  // Pause immediately to show first frame
-                  videoRef.current?.pause();
-                  console.log('Video preloaded and ready for instant playback');
-                }).catch(e => console.log('Video preload play attempt:', e));
+                videoRef.current.currentTime = 0;
+                console.log('Video data loaded and ready for instant playback');
               }
             }}
             onCanPlayThrough={() => {
