@@ -16,8 +16,8 @@ export interface MiraPhoneModeRef {
   handleVoiceResponse: (audioUrl: string, transcript: string, onAudioEnd?: () => void) => Promise<void>;
 }
 
-// Use the correct video file from attached assets
-const miraVideo = '/attached_assets/Mira CyberPunk BG Talking_1753109718925.mp4';
+// Use the latest vertical video file from attached assets
+const miraVideo = '/attached_assets/Mira Vertical No Background_1753123870001.mp4';
 
 // Elegant starfield visualization with distant glowing stars
 const DataCluster = () => {
