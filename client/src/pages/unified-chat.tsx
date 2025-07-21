@@ -251,7 +251,7 @@ export default function UnifiedChat() {
         const userMsg: Message = {
           id: Date.now().toString(),
           type: 'user',
-          content: `🎤 "${data.transcription}"`,
+          content: data.transcription.trim(),
           timestamp: new Date()
         };
         setMessages(prev => [...prev, userMsg]);
