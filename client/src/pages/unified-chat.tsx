@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { MiraAvatar } from '@/components/MiraAvatar';
-import { MiraPhoneMode } from '@/components/MiraPhoneMode';
+import { MiraPhoneMode, type MiraPhoneModeRef } from '@/components/MiraPhoneMode';
 import { Mic, MicOff, Send, Upload, Bot, User, Loader2, Radio, FileText, MessageSquare, Volume2 } from 'lucide-react';
 
 interface Message {
@@ -42,6 +42,7 @@ export default function UnifiedChat() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const miraRef = useRef<MiraPhoneModeRef>(null);
 
   // Mira Avatar state
   const [isMiraActive, setIsMiraActive] = useState(false);
@@ -273,7 +274,15 @@ export default function UnifiedChat() {
 
         if (data.audioUrl) {
           console.log('Playing audio from WebSocket response:', data.audioUrl);
-          playAudio(data.audioUrl);
+          
+          // Handle MIRA mode with synchronized video-audio playback
+          if (interactionMode === 'mira' && miraRef.current) {
+            setIsMiraActive(true);
+            miraRef.current.handleVoiceResponse(data.audioUrl, data.response || data.text || '');
+          } else {
+            // Regular audio playback for other modes
+            playAudio(data.audioUrl);
+          }
 
           // Auto-restart continuous mode
           if (isContinuousMode) {
@@ -780,6 +789,7 @@ ${analysis.feedback}`;
   if (interactionMode === 'mira') {
     return (
       <MiraPhoneMode
+        ref={miraRef}
         isRecording={isRecording}
         isProcessing={isProcessing}
         isConnected={isConnected}
@@ -1080,11 +1090,17 @@ ${analysis.feedback}`;
         </div>
       </div>
 
-      {/* Mira Avatar - only appears in MIRA mode, not during regular voice interactions */}
+      {/* Mira Phone Mode - full screen mode with video and synchronized audio */}
       {interactionMode === 'mira' && (
-        <MiraAvatar 
-          isPlaying={isMiraActive} 
-          audioElement={currentAudioRef.current}
+        <MiraPhoneMode
+          ref={miraRef}
+          isRecording={isRecording}
+          isProcessing={isProcessing}
+          isConnected={isConnected}
+          isMiraActive={isMiraActive}
+          currentTranscription={currentTranscription}
+          onToggleRecording={toggleRecording}
+          onBack={() => setInteractionMode('text')}
         />
       )}
     </div>
