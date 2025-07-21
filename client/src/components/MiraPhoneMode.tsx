@@ -212,7 +212,7 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
     }
   }, []);
 
-  // Simplified voice response handler with working video playback
+  // Simplified voice response handler with immediate video start
   const handleVoiceResponse = useCallback(async (audioUrl: string, transcript: string, onAudioEnd?: () => void) => {
     try {
       console.log('🎵 Starting synchronized playback:', audioUrl);
@@ -228,41 +228,41 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
       audioRef.current = audio;
       audio.volume = 1.0;
 
-      // Wait for audio to be ready
-      await new Promise((resolve) => {
-        if (audio.readyState >= 2) {
-          resolve(true);
-        } else {
-          audio.addEventListener('canplay', () => resolve(true), { once: true });
-        }
-      });
-
-      // Start video if ready
+      // Start video immediately if ready
       if (videoRef.current && isVideoReady) {
-        console.log('🎬 Starting synchronized audio-video playback');
-        
+        console.log('🎬 Starting video immediately');
         videoRef.current.currentTime = 0;
         videoRef.current.playbackRate = 0.85;
         
-        // Start both together
         try {
-          await Promise.all([
-            videoRef.current.play(),
-            audio.play()
-          ]);
-          console.log('✅ Synchronized playback started successfully');
+          await videoRef.current.play();
+          console.log('✅ Video started successfully');
         } catch (error) {
-          console.log('Fallback to audio-only:', error);
-          await audio.play();
+          console.log('Video play failed:', error);
         }
-      } else {
-        console.log('⚡ Audio-only playback (video not ready)');
+      }
+
+      // Start audio (with or without waiting for ready state)
+      try {
+        console.log('🎵 Starting audio playback');
+        await audio.play();
+        console.log('✅ Audio started successfully');
+      } catch (error) {
+        console.log('Audio play failed, waiting for ready state:', error);
+        // Fallback: wait for audio to be ready if immediate play fails
+        await new Promise((resolve) => {
+          if (audio.readyState >= 2) {
+            resolve(true);
+          } else {
+            audio.addEventListener('canplay', () => resolve(true), { once: true });
+          }
+        });
         await audio.play();
       }
 
       // Handle audio end
       audio.onended = () => {
-        console.log('🏁 Audio ended, stopping video');
+        console.log('🏁 Audio ended, stopping video and triggering fast fade-out');
         if (videoRef.current) {
           videoRef.current.pause();
           videoRef.current.currentTime = 0;
