@@ -284,7 +284,7 @@ export default function UnifiedChat() {
               setTimeout(() => {
                 setIsMiraActive(false);
                 setCurrentTranscription('');
-              }, 500);
+              }, 100);
             });
           } else {
             // Regular audio playback for other modes
