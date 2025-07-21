@@ -299,12 +299,20 @@ video::-webkit-media-controls {
 
   @keyframes floating-orb {
     0%, 100% { 
-      transform: translateY(0px) scale(1); 
+      transform: translateY(0px) translateX(0px) rotate(0deg) scale(1); 
       opacity: 0.6; 
     }
+    25% { 
+      transform: translateY(-15px) translateX(5px) rotate(90deg) scale(1.1); 
+      opacity: 0.9; 
+    }
     50% { 
-      transform: translateY(-20px) scale(1.2); 
+      transform: translateY(-8px) translateX(-5px) rotate(180deg) scale(0.9); 
       opacity: 1; 
+    }
+    75% { 
+      transform: translateY(-20px) translateX(3px) rotate(270deg) scale(1.05); 
+      opacity: 0.8; 
     }
   }
 

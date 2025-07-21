@@ -27,19 +27,19 @@ const DataCluster = () => {
         {/* Central nexus - smaller and more subtle */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-1 bg-emerald-400/60 rounded-full animate-pulse shadow-sm shadow-emerald-400/40" style={{ animationDuration: '3s' }}></div>
         
-        {/* Distant star field */}
-        {Array.from({ length: 40 }).map((_, i) => {
+        {/* Enhanced moving star field */}
+        {Array.from({ length: 50 }).map((_, i) => {
           const x = Math.random() * 100;
           const y = Math.random() * 100;
-          const size = 1 + Math.random() * 2;
-          const brightness = 0.3 + Math.random() * 0.4;
+          const size = 1 + Math.random() * 2.5;
+          const brightness = 0.4 + Math.random() * 0.6;
           const colors = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'];
           const color = colors[i % 4];
           
           return (
             <div
               key={`star-${i}`}
-              className="absolute rounded-full animate-pulse"
+              className="absolute rounded-full"
               style={{
                 width: `${size}px`,
                 height: `${size}px`,
@@ -47,22 +47,23 @@ const DataCluster = () => {
                 opacity: brightness,
                 left: `${x}%`,
                 top: `${y}%`,
-                animationDelay: `${i * 0.3}s`,
-                animationDuration: `${4 + Math.random() * 4}s`,
-                filter: `drop-shadow(0 0 ${2 + size}px ${color})`
+                animation: `floating-orb ${2 + Math.random() * 3}s infinite ease-in-out, pulse ${1.5 + Math.random() * 2}s infinite ease-in-out`,
+                animationDelay: `${i * 0.1}s, ${i * 0.2}s`,
+                filter: `drop-shadow(0 0 ${3 + size}px ${color})`,
+                transform: `scale(${0.8 + Math.random() * 0.4})`
               }}
             />
           );
         })}
         
-        {/* Simple connecting lines - fewer and thinner */}
-        <svg className="absolute inset-0 w-full h-full opacity-40">
-          {Array.from({ length: 8 }).map((_, i) => {
-            const angle = (i * 45) * Math.PI / 180;
+        {/* Dynamic connecting lines with movement */}
+        <svg className="absolute inset-0 w-full h-full opacity-50">
+          {Array.from({ length: 12 }).map((_, i) => {
+            const angle = (i * 30) * Math.PI / 180;
             const centerX = window.innerWidth / 2;
             const centerY = window.innerHeight / 2;
-            const endX = centerX + Math.cos(angle) * 150;
-            const endY = centerY + Math.sin(angle) * 150;
+            const endX = centerX + Math.cos(angle) * (120 + Math.sin(i * 0.5) * 40);
+            const endY = centerY + Math.sin(angle) * (120 + Math.cos(i * 0.7) * 40);
             
             return (
               <line
@@ -71,82 +72,106 @@ const DataCluster = () => {
                 y1={centerY}
                 x2={endX}
                 y2={endY}
-                stroke="rgba(16, 185, 129, 0.15)"
-                strokeWidth="0.5"
-                className="animate-pulse"
+                stroke="rgba(16, 185, 129, 0.25)"
+                strokeWidth="0.8"
                 style={{ 
-                  animationDelay: `${i * 0.5}s`,
-                  animationDuration: '6s'
+                  animation: `pulse 3s infinite ease-in-out, floating-orb 4s infinite ease-in-out`,
+                  animationDelay: `${i * 0.2}s, ${i * 0.3}s`,
+                  strokeDasharray: '4,4',
+                  strokeDashoffset: `${i * 2}`
                 }}
               />
             );
           })}
         </svg>
         
-        {/* Slow rotating rings - smaller and more subtle */}
-        {Array.from({ length: 2 }).map((_, i) => (
+        {/* Enhanced rotating rings with pulse */}
+        {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={`ring-${i}`}
-            className="absolute border border-emerald-400/10 rounded-full animate-spin"
+            className="absolute border rounded-full"
             style={{
-              width: `${200 + i * 100}px`,
-              height: `${200 + i * 100}px`,
+              width: `${180 + i * 80}px`,
+              height: `${180 + i * 80}px`,
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              animationDuration: `${60 + i * 30}s`,
-              animationDirection: i % 2 === 0 ? 'normal' : 'reverse'
+              borderColor: i % 3 === 0 ? 'rgba(16, 185, 129, 0.2)' : i % 3 === 1 ? 'rgba(6, 182, 212, 0.15)' : 'rgba(139, 92, 246, 0.1)',
+              animation: `spin ${20 + i * 10}s infinite linear, pulse ${4 + i}s infinite ease-in-out`,
+              animationDirection: i % 2 === 0 ? 'normal, normal' : 'reverse, normal',
+              animationDelay: `0s, ${i * 0.8}s`
             }}
           />
         ))}
         
-        {/* Gentle floating orbs - fewer and softer */}
-        {Array.from({ length: 12 }).map((_, i) => {
-          const angle = (i * 30) * Math.PI / 180;
-          const radius = 80 + (i % 3) * 40;
-          const x = 50 + Math.cos(angle) * (radius / 8);
-          const y = 50 + Math.sin(angle) * (radius / 8);
+        {/* Dynamic floating orbs with orbital movement */}
+        {Array.from({ length: 20 }).map((_, i) => {
+          const angle = (i * 18) * Math.PI / 180;
+          const radius = 60 + (i % 4) * 30;
+          const x = 50 + Math.cos(angle) * (radius / 6);
+          const y = 50 + Math.sin(angle) * (radius / 6);
           
           return (
             <div
               key={`orb-${i}`}
-              className="absolute rounded-full animate-pulse"
+              className="absolute rounded-full"
               style={{
-                width: '2px',
-                height: '2px',
-                backgroundColor: i % 3 === 0 ? '#10b981' : i % 3 === 1 ? '#06b6d4' : '#8b5cf6',
-                opacity: 0.4,
+                width: `${2 + (i % 3)}px`,
+                height: `${2 + (i % 3)}px`,
+                backgroundColor: i % 4 === 0 ? '#10b981' : i % 4 === 1 ? '#06b6d4' : i % 4 === 2 ? '#8b5cf6' : '#f59e0b',
+                opacity: 0.6 + Math.random() * 0.4,
                 left: `${x}%`,
                 top: `${y}%`,
-                animationDelay: `${i * 0.8}s`,
-                animationDuration: '8s',
-                filter: 'drop-shadow(0 0 3px rgba(16, 185, 129, 0.5))'
+                animation: `floating-orb ${3 + (i % 4)}s infinite ease-in-out, pulse ${2 + (i % 3)}s infinite ease-in-out`,
+                animationDelay: `${i * 0.3}s, ${i * 0.4}s`,
+                filter: 'drop-shadow(0 0 6px rgba(16, 185, 129, 0.7))',
+                transform: `scale(${0.8 + (i % 3) * 0.3})`
               }}
             />
           );
         })}
         
-        {/* Soft energy streams - slower and more subtle */}
-        {Array.from({ length: 4 }).map((_, i) => {
-          const angle = (i * 90) * Math.PI / 180;
+        {/* Enhanced energy streams with movement */}
+        {Array.from({ length: 8 }).map((_, i) => {
+          const angle = (i * 45) * Math.PI / 180;
           
           return (
             <div
               key={`stream-${i}`}
-              className="absolute bg-gradient-to-r from-emerald-400/20 via-cyan-400/10 to-transparent"
+              className="absolute bg-gradient-to-r from-emerald-400/40 via-cyan-400/20 to-transparent"
               style={{
-                width: '80px',
-                height: '0.5px',
+                width: `${60 + Math.sin(i) * 20}px`,
+                height: '1px',
                 top: '50%',
                 left: '50%',
                 transformOrigin: '0 0',
                 transform: `rotate(${angle * 180 / Math.PI}deg)`,
-                animation: `pulse 8s infinite ease-in-out`,
-                animationDelay: `${i * 1}s`
+                animation: `pulse 4s infinite ease-in-out, floating-orb 6s infinite ease-in-out`,
+                animationDelay: `${i * 0.5}s, ${i * 0.7}s`,
+                filter: 'blur(0.3px)'
               }}
             />
           );
         })}
+        
+        {/* Additional particle effects */}
+        {Array.from({ length: 30 }).map((_, i) => (
+          <div
+            key={`particle-${i}`}
+            className="absolute rounded-full"
+            style={{
+              width: '1px',
+              height: '1px',
+              backgroundColor: i % 3 === 0 ? '#10b981' : i % 3 === 1 ? '#06b6d4' : '#8b5cf6',
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animation: `floating-orb ${2 + Math.random() * 4}s infinite ease-in-out, pulse ${1 + Math.random() * 2}s infinite ease-in-out`,
+              animationDelay: `${Math.random() * 2}s, ${Math.random() * 3}s`,
+              opacity: 0.3 + Math.random() * 0.5,
+              filter: 'drop-shadow(0 0 2px rgba(16, 185, 129, 0.8))'
+            }}
+          />
+        ))}
       </div>
     </div>
   );
@@ -262,12 +287,12 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
       {/* Main content area - vertical layout */}
       <div className="relative w-full h-full flex flex-col justify-center items-center overflow-hidden">
         {/* Smooth transition between states */}
-        <div className={`absolute inset-0 transition-opacity duration-1000 ${isMiraActive ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`absolute inset-0 transition-all duration-500 ease-in-out ${isMiraActive ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
           <DataCluster />
         </div>
         
         {/* Mira video with smooth fade-in and animated elements */}
-        <div className={`absolute inset-0 transition-opacity duration-1000 ${isMiraActive ? 'opacity-100' : 'opacity-0'} flex items-center justify-center`}>
+        <div className={`absolute inset-0 transition-all duration-500 ease-in-out ${isMiraActive ? 'opacity-100 scale-100' : 'opacity-0 scale-105'} flex items-center justify-center`}>
           {/* Animated background elements surrounding the avatar */}
           {isMiraActive && (
             <>
