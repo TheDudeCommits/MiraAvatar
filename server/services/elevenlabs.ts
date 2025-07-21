@@ -36,15 +36,16 @@ export class ElevenLabsService {
           "xi-api-key": apiKey
         },
         body: JSON.stringify({
-          text: text.length > 800 ? text.substring(0, 800) + "..." : text, // Limit for speed
-          model_id: "eleven_turbo_v2_5", // Faster model
+          text: text.length > 500 ? text.substring(0, 500) + "..." : text, // Further reduced for speed
+          model_id: "eleven_turbo_v2_5", // Fastest model available
           voice_settings: {
-            stability: 0.6,
-            similarity_boost: 0.4,
+            stability: 0.5, // Reduced for speed
+            similarity_boost: 0.3, // Reduced for speed
             style: 0.0,
-            use_speaker_boost: false // Disable for speed
+            use_speaker_boost: false
           },
-          output_format: "mp3_22050_32" // Lower quality for faster generation
+          output_format: "mp3_22050_32", // Optimized format
+          optimize_streaming_latency: 4 // Maximum optimization
         })
       });
 

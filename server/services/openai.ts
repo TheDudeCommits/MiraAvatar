@@ -72,8 +72,8 @@ export class OpenAIService {
             content: message
           }
         ],
-        temperature: 0.5, // Lower for faster responses
-        max_tokens: 300 // Reduced for speed
+        temperature: 0.3, // Optimized for speed
+        max_tokens: 150 // Reduced for faster chat responses
       });
 
       const text = response.choices[0].message.content || "I'm sorry, I couldn't generate a response.";
@@ -93,30 +93,48 @@ export class OpenAIService {
     }
   }
 
-  // Live voice chat processing
+  // OPTIMIZED Live voice chat processing
   async processVoiceInput(audioData: Buffer): Promise<{ text: string; response: string; audioUrl: string }> {
     try {
       // Create file-like object for OpenAI
       const audioFile = this.createAudioFile(audioData, "audio.wav");
       
-      // First, transcribe the audio input using OpenAI Whisper
+      // First, transcribe the audio input using OpenAI Whisper (optimized)
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
         model: "whisper-1",
+        response_format: "text",
+        temperature: 0.0 // Optimized for speed
       });
 
       const userText = transcription.text;
       
-      // Generate AI response
-      const chatResponse = await this.chatWithAI(userText, false);
+      // Generate FASTER AI response
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // Faster model
+        messages: [
+          {
+            role: "system",
+            content: "You are Mira, a career coach. Be helpful and concise. Keep responses under 80 words for voice interactions."
+          },
+          {
+            role: "user",
+            content: userText
+          }
+        ],
+        temperature: 0.3, // Optimized for speed
+        max_tokens: 80 // Reduced for faster processing
+      });
       
-      // Generate voice response
+      const responseText = response.choices[0].message.content || "I understand.";
+      
+      // Generate voice response (optimized)
       const { elevenLabsService } = await import("./elevenlabs");
-      const audioUrl = await elevenLabsService.generateSpeech(chatResponse.text);
+      const audioUrl = await elevenLabsService.generateSpeech(responseText);
       
       return {
         text: userText,
-        response: chatResponse.text,
+        response: responseText,
         audioUrl
       };
     } catch (error) {
@@ -125,7 +143,7 @@ export class OpenAIService {
     }
   }
 
-  // Transcribe audio for real-time chat
+  // Transcribe audio for real-time chat (OPTIMIZED)
   async transcribeAudio(audioData: Buffer): Promise<{ text: string }> {
     try {
       const audioFile = this.createAudioFile(audioData, "audio.wav");
@@ -133,6 +151,8 @@ export class OpenAIService {
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
         model: "whisper-1",
+        response_format: "text",
+        temperature: 0.0 // Optimized for speed
       });
 
       return {
@@ -141,6 +161,37 @@ export class OpenAIService {
     } catch (error) {
       console.error("Audio transcription error:", error);
       throw new Error(`Failed to transcribe audio: ${error}`);
+    }
+  }
+
+  // OPTIMIZED Chat with conversation context
+  async chatWithContext(message: string, conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>): Promise<string> {
+    try {
+      // Build context-aware messages (limited for speed)
+      const recentHistory = conversationHistory.slice(-4); // Only last 2 exchanges for speed
+      const messages = [
+        {
+          role: "system" as const,
+          content: "You are Mira, a career coach. Be helpful and concise. Keep responses under 60 words for voice interactions."
+        },
+        ...recentHistory,
+        {
+          role: "user" as const,
+          content: message
+        }
+      ];
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // Fastest model
+        messages: messages,
+        temperature: 0.2, // Optimized for speed and consistency
+        max_tokens: 60 // Very short for speed
+      });
+
+      return response.choices[0].message.content || "I understand.";
+    } catch (error) {
+      console.error("Chat with context error:", error);
+      throw new Error(`Failed to chat with context: ${error}`);
     }
   }
 
