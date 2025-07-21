@@ -189,11 +189,46 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isVideoPreloaded, setIsVideoPreloaded] = useState(false);
 
-  // Handle voice response with perfect audio-video sync
+  // Preload video immediately on component mount
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && !isVideoPreloaded) {
+      console.log('🎬 Preloading Mira video...');
+      
+      // Force preload and prepare video
+      video.preload = 'auto';
+      video.load();
+      
+      const handleCanPlayThrough = () => {
+        console.log('✅ Video fully preloaded and ready for instant playback');
+        setIsVideoPreloaded(true);
+        setIsVideoReady(true);
+        video.playbackRate = 0.85;
+      };
+      
+      const handleLoadedData = () => {
+        console.log('📹 Video data loaded');
+        setIsVideoReady(true);
+        video.playbackRate = 0.85;
+      };
+      
+      // Use multiple events to ensure readiness
+      video.addEventListener('canplaythrough', handleCanPlayThrough);
+      video.addEventListener('loadeddata', handleLoadedData);
+      
+      return () => {
+        video.removeEventListener('canplaythrough', handleCanPlayThrough);
+        video.removeEventListener('loadeddata', handleLoadedData);
+      };
+    }
+  }, [isVideoPreloaded]);
+
+  // Handle voice response with perfect audio-video sync and no lag
   const handleVoiceResponse = useCallback(async (audioUrl: string, transcript: string, onAudioEnd?: () => void) => {
     try {
-      console.log('Starting synchronized audio-video playback:', audioUrl);
+      console.log('🎵 Starting lag-free synchronized playback:', audioUrl);
       
       // Stop any current audio
       if (audioRef.current) {
@@ -201,49 +236,59 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
         audioRef.current.currentTime = 0;
       }
 
-      // Create new audio and wait for it to load
+      // Create new audio with immediate readiness
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
+      audio.preload = 'auto';
+      audio.volume = 1.0;
 
-      // Wait for audio to be ready
-      await new Promise((resolve, reject) => {
-        audio.onloadeddata = resolve;
-        audio.onerror = reject;
+      // Wait for both audio and video to be completely ready
+      const audioReadyPromise = new Promise((resolve) => {
+        if (audio.readyState >= 2) {
+          resolve(true);
+        } else {
+          audio.addEventListener('canplay', () => resolve(true), { once: true });
+        }
       });
 
-      // Start both video and audio simultaneously for perfect sync
-      if (videoRef.current && isVideoReady) {
+      await audioReadyPromise;
+
+      // Ensure video is preloaded and ready for instant playback
+      if (videoRef.current && isVideoPreloaded && isVideoReady) {
+        console.log('🎬 Both audio and video ready - starting instant synchronized playback');
+        
+        // Reset video position and prepare for smooth start
         videoRef.current.currentTime = 0;
-        videoRef.current.playbackRate = 0.85;
         
-        // Start both at exactly the same time
-        await Promise.all([
-          audio.play(),
-          videoRef.current.play()
-        ]);
+        // Start both immediately with no Promise.all delay
+        audio.play();
+        videoRef.current.play();
         
-        console.log('Audio and video synchronized and playing');
+        console.log('✅ Instant synchronized playback started');
       } else {
-        // Just play audio if video isn't ready
+        console.log('⚡ Starting audio-only playback (video not ready)');
         await audio.play();
       }
 
       // Handle audio end with fade-out effect
       audio.onended = () => {
-        console.log('Audio ended, stopping video and triggering fade-out');
+        console.log('🏁 Audio ended, stopping video and triggering fast fade-out');
         if (videoRef.current) {
           videoRef.current.pause();
         }
-        // Call the callback to trigger fade-out in parent
+        // Fast fade-out - 100ms delay as requested
         if (onAudioEnd) {
-          onAudioEnd();
+          setTimeout(() => {
+            onAudioEnd();
+          }, 100);
         }
       };
 
     } catch (error) {
-      console.error('Error with synchronized playback:', error);
+      console.error('❌ Error with synchronized playback:', error);
+      if (onAudioEnd) onAudioEnd();
     }
-  }, [isVideoReady]);
+  }, [isVideoReady, isVideoPreloaded]);
 
   // Remove the old video control effect and replace with new sync logic
   useEffect(() => {
@@ -457,10 +502,17 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
             preload="auto"
             onLoadedData={() => {
               console.log('Mira video loaded successfully');
-              setIsVideoReady(true);
-              if (videoRef.current) {
-                videoRef.current.playbackRate = 0.85;
+              if (!isVideoReady) {
+                setIsVideoReady(true);
+                if (videoRef.current) {
+                  videoRef.current.playbackRate = 0.85;
+                }
               }
+            }}
+            onCanPlayThrough={() => {
+              console.log('Mira video can play through without buffering');
+              setIsVideoPreloaded(true);
+              setIsVideoReady(true);
             }}
             onError={(e) => {
               console.error('Mira video error:', e);
