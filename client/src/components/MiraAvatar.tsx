@@ -73,19 +73,19 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({ isPlaying, audioElement 
   }, [audioElement, isPlaying]);
 
   return (
-    <div className={`fixed bottom-8 right-8 z-50 transition-all duration-500 ${
+    <div className={`fixed bottom-24 right-12 z-50 transition-all duration-500 ${
       showAvatar ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
     }`} style={{ backgroundColor: 'transparent' }}>
       <div className="relative" style={{ backgroundColor: 'transparent' }}>
-        {/* Mira Avatar Video - Responsive sizing */}
+        {/* Mira Avatar Video - Larger responsive sizing */}
         <video
           ref={videoRef}
           className="rounded-3xl shadow-2xl border-3 border-emerald-400/40"
           style={{
             width: 'auto',
-            height: 'clamp(320px, 35vh, 400px)',
+            height: 'clamp(360px, 40vh, 480px)',
             backgroundColor: 'transparent',
-            maxWidth: 'clamp(250px, 25vw, 320px)',
+            maxWidth: 'clamp(280px, 30vw, 380px)',
             objectFit: 'contain',
             filter: 'drop-shadow(0 0 16px rgba(16, 185, 129, 0.24))'
           }}
@@ -108,11 +108,11 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({ isPlaying, audioElement 
           <div className="absolute inset-0 rounded-3xl bg-emerald-400/20 blur-lg animate-pulse" style={{ backgroundColor: 'rgba(16, 185, 129, 0.20)' }}></div>
         )}
         
-        {/* Enhanced name label - responsive positioning */}
+        {/* Enhanced name label - adjusted for larger frame */}
         {showAvatar && (
-          <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
-            <div className="bg-black/90 backdrop-blur-md rounded-xl px-4 py-2 border-2 border-emerald-400/32 shadow-lg">
-              <span className="text-emerald-300 text-sm titillium-web-bold tracking-wider">MIRA</span>
+          <div className="absolute -bottom-14 left-1/2 transform -translate-x-1/2">
+            <div className="bg-black/90 backdrop-blur-md rounded-xl px-5 py-2 border-2 border-emerald-400/32 shadow-lg">
+              <span className="text-emerald-300 text-base titillium-web-bold tracking-wider">MIRA</span>
             </div>
           </div>
         )}
