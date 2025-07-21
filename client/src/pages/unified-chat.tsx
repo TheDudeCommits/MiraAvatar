@@ -144,7 +144,7 @@ export default function UnifiedChat() {
       wsRef.current = null;
     }
 
-    if (mediaRecorderRef.current) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         if (mediaRecorderRef.current.state !== 'inactive') {
           mediaRecorderRef.current.stop();
@@ -273,6 +273,7 @@ export default function UnifiedChat() {
         setMessages(prev => [...prev, newMessage]);
 
         if (data.audioUrl) {
+          console.log('Playing audio from WebSocket response:', data.audioUrl);
           playAudio(data.audioUrl);
 
           // Auto-restart continuous mode
@@ -281,6 +282,8 @@ export default function UnifiedChat() {
               if (isContinuousMode) restartContinuousListening();
             }, 1000);
           }
+        } else {
+          console.warn('No audio URL provided in voice response');
         }
 
         break;
@@ -334,6 +337,8 @@ ${analysis.feedback}`;
 
   // Play audio response
   const playAudio = (audioUrl: string) => {
+    console.log('Starting audio playback for:', audioUrl);
+    
     // Stop any currently playing audio
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
@@ -343,6 +348,11 @@ ${analysis.feedback}`;
 
     const audio = new Audio(audioUrl);
     currentAudioRef.current = audio;
+    
+    // Force audio to load and play immediately
+    audio.preload = 'auto';
+    audio.autoplay = false;
+    audio.load(); // Force load
 
     // Activate Mira when audio starts playing
     audio.addEventListener('play', () => {
@@ -361,7 +371,35 @@ ${analysis.feedback}`;
       currentAudioRef.current = null;
     });
 
-    audio.play().catch(console.error);
+    // Force audio playback with retry mechanism
+    const playWithRetry = async () => {
+      try {
+        await audio.play();
+        console.log('Audio started playing successfully');
+      } catch (error) {
+        console.error('Audio playback failed:', error);
+        // Try to enable audio with user interaction
+        setIsMiraActive(false);
+        currentAudioRef.current = null;
+        
+        // Create a fallback play button
+        const playButton = document.createElement('button');
+        playButton.textContent = '🔊 Click to play audio response';
+        playButton.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 10px; background: #0ea5e9; color: white; border: none; border-radius: 5px; cursor: pointer;';
+        playButton.onclick = async () => {
+          try {
+            await audio.play();
+            playButton.remove();
+          } catch (e) {
+            console.error('Manual audio play failed:', e);
+          }
+        };
+        document.body.appendChild(playButton);
+        setTimeout(() => playButton.remove(), 10000); // Remove after 10 seconds
+      }
+    };
+    
+    playWithRetry();
   };
 
   // Send text message
