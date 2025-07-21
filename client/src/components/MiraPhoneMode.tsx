@@ -191,11 +191,11 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isVideoPreloaded, setIsVideoPreloaded] = useState(false);
 
-  // Preload video immediately on component mount
+  // Preload video immediately on component mount and fix frozen frame
   useEffect(() => {
     const video = videoRef.current;
     if (video && !isVideoPreloaded) {
-      console.log('🎬 Preloading Mira video...');
+      console.log('🎬 Preloading Mira video and preventing frozen frame...');
       
       // Force preload and prepare video
       video.preload = 'auto';
@@ -206,6 +206,19 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
         setIsVideoPreloaded(true);
         setIsVideoReady(true);
         video.playbackRate = 0.85;
+        
+        // CRITICAL: Prevent frozen frame by briefly playing then pausing
+        video.play().then(() => {
+          // Let it play for one frame then pause to show proper first frame
+          setTimeout(() => {
+            video.pause();
+            video.currentTime = 0;
+            console.log('🎯 Video preloaded and first frame active (no frozen state)');
+          }, 50);
+        }).catch(e => {
+          console.log('Video preload play attempt (expected):', e);
+          // This is expected if autoplay is blocked, video will still be ready
+        });
       };
       
       const handleLoadedData = () => {
@@ -260,12 +273,20 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
         // Reset video position and prepare for smooth start
         videoRef.current.currentTime = 0;
         
-        // Start both immediately with no Promise.all delay
+        // Start both immediately with no Promise.all delay - ensure video is unpaused first
         videoRef.current.playbackRate = 0.85;
-        audio.play();
-        videoRef.current.play();
         
-        console.log('✅ Instant synchronized playback started');
+        // Force video to start from beginning with instant play
+        const videoPlayPromise = videoRef.current.play();
+        const audioPlayPromise = audio.play();
+        
+        Promise.all([videoPlayPromise, audioPlayPromise]).then(() => {
+          console.log('✅ Instant synchronized playback started');
+        }).catch((error) => {
+          console.log('Playback may require user interaction:', error);
+          // Still try to play audio even if video fails
+          audio.play().catch(e => console.log('Audio fallback:', e));
+        });
       } else {
         console.log('⚡ Starting audio-only playback (video not ready)');
         await audio.play();
@@ -501,6 +522,7 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
             playsInline
             loop
             preload="auto"
+            autoPlay={false}
             onPlay={() => {
               if (videoRef.current) {
                 videoRef.current.playbackRate = 0.85;
@@ -509,23 +531,38 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
             }}
             onLoadedData={() => {
               console.log('Mira video loaded successfully');
-              if (!isVideoReady) {
+              if (!isVideoReady && videoRef.current) {
                 setIsVideoReady(true);
-                if (videoRef.current) {
-                  videoRef.current.playbackRate = 0.85;
-                }
+                videoRef.current.playbackRate = 0.85;
+                // Start playing immediately to prevent frozen frame
+                videoRef.current.play().then(() => {
+                  // Pause immediately to show first frame
+                  videoRef.current?.pause();
+                  console.log('Video preloaded and ready for instant playback');
+                }).catch(e => console.log('Video preload play attempt:', e));
               }
             }}
             onCanPlayThrough={() => {
               console.log('Mira video can play through without buffering');
               setIsVideoPreloaded(true);
               setIsVideoReady(true);
+              if (videoRef.current) {
+                // Ensure video is ready for instant playback
+                videoRef.current.currentTime = 0;
+                videoRef.current.playbackRate = 0.85;
+              }
             }}
             onError={(e) => {
               console.error('Mira video error:', e);
               console.error('Video source:', miraVideo);
             }}
-            onCanPlay={() => console.log('Mira video can play')}
+            onCanPlay={() => {
+              console.log('Mira video can play');
+              if (videoRef.current) {
+                videoRef.current.currentTime = 0;
+                videoRef.current.playbackRate = 0.85;
+              }
+            }}
             onLoadStart={() => console.log('Mira video load started')}
           >
             <source src={miraVideo} type="video/mp4" />
