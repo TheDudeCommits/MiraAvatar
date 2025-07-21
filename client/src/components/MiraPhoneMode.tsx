@@ -13,7 +13,7 @@ interface MiraPhoneModeProps {
 }
 
 export interface MiraPhoneModeRef {
-  handleVoiceResponse: (audioUrl: string, transcript: string) => Promise<void>;
+  handleVoiceResponse: (audioUrl: string, transcript: string, onAudioEnd?: () => void) => Promise<void>;
 }
 
 // Use newest video file with no background
@@ -398,7 +398,7 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
   const [isVideoReady, setIsVideoReady] = useState(false);
 
   // Handle voice response with perfect audio-video sync
-  const handleVoiceResponse = useCallback(async (audioUrl: string, transcript: string) => {
+  const handleVoiceResponse = useCallback(async (audioUrl: string, transcript: string, onAudioEnd?: () => void) => {
     try {
       console.log('Starting synchronized audio-video playback:', audioUrl);
       
@@ -437,15 +437,14 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
 
       // Handle audio end with fade-out effect
       audio.onended = () => {
-        console.log('Audio ended, fading out video');
+        console.log('Audio ended, stopping video and triggering fade-out');
         if (videoRef.current) {
           videoRef.current.pause();
         }
-        // Trigger fade-out by setting isMiraActive to false in parent
-        setTimeout(() => {
-          // This will cause the parent to set isMiraActive to false
-          // and trigger the fade transition back to data cluster
-        }, 500);
+        // Call the callback to trigger fade-out in parent
+        if (onAudioEnd) {
+          onAudioEnd();
+        }
       };
 
     } catch (error) {
