@@ -278,6 +278,17 @@ export default function UnifiedChat() {
           // Handle MIRA mode with synchronized video-audio playback
           if (interactionMode === 'mira' && miraRef.current) {
             setIsMiraActive(true);
+            
+            // Create audio element to detect when it ends for fade-out
+            const audio = new Audio(data.audioUrl);
+            audio.onended = () => {
+              console.log('Audio ended, fading out MIRA');
+              setTimeout(() => {
+                setIsMiraActive(false);
+                setCurrentTranscription('');
+              }, 500);
+            };
+            
             miraRef.current.handleVoiceResponse(data.audioUrl, data.response || data.text || '');
           } else {
             // Regular audio playback for other modes

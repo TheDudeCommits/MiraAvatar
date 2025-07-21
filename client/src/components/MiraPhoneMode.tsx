@@ -435,12 +435,17 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
         await audio.play();
       }
 
-      // Handle audio end
+      // Handle audio end with fade-out effect
       audio.onended = () => {
-        console.log('Audio ended, stopping video');
+        console.log('Audio ended, fading out video');
         if (videoRef.current) {
           videoRef.current.pause();
         }
+        // Trigger fade-out by setting isMiraActive to false in parent
+        setTimeout(() => {
+          // This will cause the parent to set isMiraActive to false
+          // and trigger the fade transition back to data cluster
+        }, 500);
       };
 
     } catch (error) {
