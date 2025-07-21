@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Loader2, ArrowLeft } from 'lucide-react';
 
@@ -10,6 +10,10 @@ interface MiraPhoneModeProps {
   currentTranscription: string;
   onToggleRecording: () => void;
   onBack: () => void;
+}
+
+export interface MiraPhoneModeRef {
+  handleVoiceResponse: (audioUrl: string, transcript: string) => Promise<void>;
 }
 
 // Use newest video file with no background
@@ -380,7 +384,7 @@ const DataCluster = () => {
   );
 };
 
-export function MiraPhoneMode({ 
+export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({ 
   isRecording, 
   isProcessing, 
   isConnected, 
@@ -388,33 +392,75 @@ export function MiraPhoneMode({
   currentTranscription,
   onToggleRecording,
   onBack 
-}: MiraPhoneModeProps) {
+}, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+
+  // Handle voice response with perfect audio-video sync
+  const handleVoiceResponse = useCallback(async (audioUrl: string, transcript: string) => {
+    try {
+      console.log('Starting synchronized audio-video playback:', audioUrl);
+      
+      // Stop any current audio
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+
+      // Create new audio and wait for it to load
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      // Wait for audio to be ready
+      await new Promise((resolve, reject) => {
+        audio.onloadeddata = resolve;
+        audio.onerror = reject;
+      });
+
+      // Start both video and audio simultaneously for perfect sync
+      if (videoRef.current && isVideoReady) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.playbackRate = 0.85;
+        
+        // Start both at exactly the same time
+        await Promise.all([
+          audio.play(),
+          videoRef.current.play()
+        ]);
+        
+        console.log('Audio and video synchronized and playing');
+      } else {
+        // Just play audio if video isn't ready
+        await audio.play();
+      }
+
+      // Handle audio end
+      audio.onended = () => {
+        console.log('Audio ended, stopping video');
+        if (videoRef.current) {
+          videoRef.current.pause();
+        }
+      };
+
+    } catch (error) {
+      console.error('Error with synchronized playback:', error);
+    }
+  }, [isVideoReady]);
+
+  // Remove the old video control effect and replace with new sync logic
+  useEffect(() => {
+    // This effect is now handled by handleVoiceResponse for perfect sync
+  }, []);
+
+  // Expose handleVoiceResponse function for parent component
+  useImperativeHandle(ref, () => ({
+    handleVoiceResponse
+  }), [handleVoiceResponse]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    console.log('Mira video effect - isMiraActive:', isMiraActive, 'isVideoReady:', isVideoReady);
-
-    if (isMiraActive && isVideoReady) {
-      const playVideo = async () => {
-        try {
-          console.log('Attempting to play Mira video...');
-          video.currentTime = 0;
-          video.playbackRate = 0.85;
-          await video.play();
-          console.log('Mira video playing successfully');
-        } catch (error) {
-          console.error('Error playing Mira video:', error);
-        }
-      };
-      playVideo();
-    } else {
-      console.log('Pausing Mira video');
-      video.pause();
-    }
 
     const handleVideoEnd = () => {
       if (isMiraActive && isVideoReady) {
@@ -450,37 +496,45 @@ export function MiraPhoneMode({
         
         {/* Mira video with smooth fade-in and animated elements */}
         <div className={`absolute inset-0 transition-opacity duration-1000 ${isMiraActive ? 'opacity-100' : 'opacity-0'} flex items-center justify-center`}>
-          {/* Animated background elements when video is active */}
+          {/* Animated background elements surrounding the avatar */}
           {isMiraActive && (
             <>
-              {/* Rotating energy rings */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-96 h-96 border border-emerald-400/20 rounded-full animate-spin" style={{ animationDuration: '20s' }}></div>
-                <div className="absolute w-80 h-80 border border-cyan-400/15 rounded-full animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }}></div>
-                <div className="absolute w-64 h-64 border border-emerald-300/25 rounded-full animate-spin" style={{ animationDuration: '10s' }}></div>
+              {/* Outer rotating energy rings - surrounding the avatar */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                <div className="w-[500px] h-[500px] border border-emerald-400/15 rounded-full animate-spin" style={{ animationDuration: '25s' }}></div>
+                <div className="absolute w-[600px] h-[600px] border border-cyan-400/10 rounded-full animate-spin" style={{ animationDuration: '30s', animationDirection: 'reverse' }}></div>
+                <div className="absolute w-[700px] h-[700px] border border-emerald-300/8 rounded-full animate-spin" style={{ animationDuration: '35s' }}></div>
               </div>
               
-              {/* Pulsing energy field */}
-              <div className="absolute inset-0 bg-gradient-radial from-emerald-400/10 via-transparent to-cyan-400/5 animate-pulse pointer-events-none" style={{ animationDuration: '3s' }}></div>
+              {/* Ambient energy field in background */}
+              <div className="absolute inset-0 bg-gradient-radial from-emerald-400/5 via-transparent to-cyan-400/3 animate-pulse pointer-events-none z-0" style={{ animationDuration: '4s' }}></div>
               
-              {/* Floating energy orbs */}
-              {[...Array(12)].map((_, i) => (
-                <div
-                  key={`energy-orb-${i}`}
-                  className="absolute rounded-full pointer-events-none"
-                  style={{
-                    width: `${4 + (i % 3) * 2}px`,
-                    height: `${4 + (i % 3) * 2}px`,
-                    backgroundColor: i % 3 === 0 ? '#10b981' : i % 3 === 1 ? '#06b6d4' : '#8b5cf6',
-                    left: `${15 + (i * 7)}%`,
-                    top: `${25 + Math.sin(i * 0.8) * 30}%`,
-                    animation: `floating-orb ${3 + (i % 4)}s infinite ease-in-out`,
-                    animationDelay: `${i * 0.3}s`,
-                    filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.8))',
-                    transform: `rotate(${i * 30}deg) translateX(${30 + i * 8}px)`
-                  }}
-                />
-              ))}
+              {/* Floating energy orbs surrounding avatar */}
+              {[...Array(16)].map((_, i) => {
+                const angle = (i * 22.5) * Math.PI / 180;
+                const radius = 250 + (i % 3) * 50; // Keep orbs away from avatar center
+                const centerX = 50;
+                const centerY = 50;
+                const x = centerX + Math.cos(angle) * (radius / 10);
+                const y = centerY + Math.sin(angle) * (radius / 10);
+                
+                return (
+                  <div
+                    key={`energy-orb-${i}`}
+                    className="absolute rounded-full pointer-events-none z-0"
+                    style={{
+                      width: `${3 + (i % 3) * 1}px`,
+                      height: `${3 + (i % 3) * 1}px`,
+                      backgroundColor: i % 4 === 0 ? '#10b981' : i % 4 === 1 ? '#06b6d4' : i % 4 === 2 ? '#8b5cf6' : '#f59e0b',
+                      left: `${x}%`,
+                      top: `${y}%`,
+                      animation: `floating-orb ${4 + (i % 3)}s infinite ease-in-out`,
+                      animationDelay: `${i * 0.2}s`,
+                      filter: 'drop-shadow(0 0 8px rgba(16, 185, 129, 0.6))'
+                    }}
+                  />
+                );
+              })}
               
               {/* Hexagonal energy pattern */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -596,20 +650,12 @@ export function MiraPhoneMode({
           
           <video
             ref={videoRef}
-            data-mira-avatar="true"
-            className="max-w-full max-h-full object-contain relative z-20"
+            className="max-w-full max-h-full object-contain relative z-10"
             style={{ 
-              backgroundColor: 'transparent',
-              mixBlendMode: 'screen',
-              filter: 'brightness(1.4) contrast(1.3) saturate(1.2)',
-              maskImage: 'radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 90%)',
-              webkitMaskImage: 'radial-gradient(circle, rgba(0,0,0,1) 30%, rgba(0,0,0,0.8) 60%, rgba(0,0,0,0) 90%)',
-              border: 'none',
-              outline: 'none'
+              backgroundColor: 'transparent'
             }}
             muted
             playsInline
-            autoPlay
             loop
             preload="auto"
             onLoadedData={() => {
@@ -672,4 +718,4 @@ export function MiraPhoneMode({
       </div>
     </div>
   );
-}
+});
