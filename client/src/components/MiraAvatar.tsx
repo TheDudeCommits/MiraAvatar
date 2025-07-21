@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-// Use new video file with no background
-const miraVideo = '/mira-avatar-new.mp4';
+import miraVideo from '@assets/Mira CyberPunk BG Talking_1753109718925.mp4';
 
 interface MiraAvatarProps {
   isPlaying: boolean;
