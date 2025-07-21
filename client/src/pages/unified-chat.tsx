@@ -47,6 +47,7 @@ export default function UnifiedChat() {
   // Mira Avatar state
   const [isMiraActive, setIsMiraActive] = useState(false);
   const [currentTranscription, setCurrentTranscription] = useState('');
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   
   // iframe state
   const [iframeLoaded, setIframeLoaded] = useState(false);
@@ -372,18 +373,24 @@ ${analysis.feedback}`;
     // Activate Mira when audio starts playing
     audio.addEventListener('play', () => {
       setIsMiraActive(true);
+      setIsAudioPlaying(true);
+      console.log('Audio started playing - MiraAvatar should appear in Voice mode');
     });
 
     // Deactivate Mira when audio ends
     audio.addEventListener('ended', () => {
       setIsMiraActive(false);
+      setIsAudioPlaying(false);
       currentAudioRef.current = null;
+      console.log('Audio ended - MiraAvatar should disappear');
     });
 
     // Handle audio errors
     audio.addEventListener('error', () => {
       setIsMiraActive(false);
+      setIsAudioPlaying(false);
       currentAudioRef.current = null;
+      console.log('Audio error - MiraAvatar should disappear');
     });
 
     // Force audio playback with retry mechanism
@@ -1108,6 +1115,14 @@ ${analysis.feedback}`;
           currentTranscription={currentTranscription}
           onToggleRecording={toggleRecording}
           onBack={() => setInteractionMode('text')}
+        />
+      )}
+      
+      {/* MiraAvatar popup for Voice mode only */}
+      {interactionMode === 'click-to-talk' && (
+        <MiraAvatar 
+          isPlaying={isAudioPlaying} 
+          audioElement={currentAudioRef.current}
         />
       )}
     </div>
