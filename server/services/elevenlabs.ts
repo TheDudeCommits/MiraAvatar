@@ -2,28 +2,36 @@ import fs from "fs";
 import path from "path";
 
 export class ElevenLabsService {
-  private apiKey: string;
   private baseUrl = "https://api.elevenlabs.io/v1";
 
   constructor() {
-    this.apiKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_KEY || "";
+    // Constructor is now empty - we'll get the API key dynamically
+  }
+
+  private getApiKey(): string {
+    // Dynamically get the API key each time to ensure it's current
+    const key = process.env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_KEY || "";
+    console.log(`ElevenLabs API key check: ${key ? `Found key starting with ${key.substring(0, 8)}` : 'No key found'}`);
+    return key;
   }
 
   async generateSpeech(text: string, voiceId: string = "aEO01A4wXwd1O8GPgGlF"): Promise<string> {
     try {
-      if (!this.apiKey) {
+      const apiKey = this.getApiKey();
+      if (!apiKey) {
         console.log("No ElevenLabs API key provided, using mock audio");
+        console.log("📝 To enable real voice generation, ensure ELEVENLABS_API_KEY is properly set in Account Secrets");
         return "https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav";
       }
 
-      console.log(`Generating speech with ElevenLabs using voice ID: ${voiceId}...`);
+      console.log(`Generating speech with ElevenLabs using voice ID: ${voiceId} and API key: ${apiKey.substring(0, 8)}...`);
       
       const response = await fetch(`${this.baseUrl}/text-to-speech/${voiceId}`, {
         method: "POST",
         headers: {
           "Accept": "audio/mpeg",
           "Content-Type": "application/json",
-          "xi-api-key": this.apiKey
+          "xi-api-key": apiKey
         },
         body: JSON.stringify({
           text: text.length > 800 ? text.substring(0, 800) + "..." : text, // Limit for speed
