@@ -1035,22 +1035,24 @@ ${analysis.feedback}`;
                   : { onClick: toggleContinuousMode }
                 )}
                 disabled={isProcessing || !isConnected}
-                className={`titillium-web-bold w-16 h-16 rounded-full border-4 transition-all duration-200 ${
-                  isContinuousMode
-                    ? 'bg-emerald-500 border-emerald-300 scale-110 shadow-emerald-500/30 shadow-2xl animate-pulse'
+                className={`titillium-web-bold w-16 h-16 rounded-full border-2 transition-all duration-300 shadow-2xl ${
+                  isProcessing
+                    ? 'bg-yellow-500/80 border-yellow-300 animate-pulse shadow-yellow-500/50'
+                    : isContinuousMode
+                    ? 'bg-emerald-500/80 border-emerald-300 scale-110 shadow-emerald-500/50 animate-pulse'
                     : isRecording 
-                    ? 'bg-red-500 border-red-300 scale-110 shadow-red-500/30 shadow-2xl' 
-                    : 'sleek-button border-4 hover:scale-105 shadow-xl hover:sleek-button-selected'
+                    ? 'bg-red-500/80 border-red-300 scale-110 shadow-red-500/50' 
+                    : 'bg-emerald-500/20 border-emerald-300 hover:bg-emerald-500/40 hover:scale-105 shadow-emerald-500/30'
                 }`}
               >
                 {isProcessing ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-black" />
+                  <Loader2 className="w-6 h-6 animate-spin text-white" />
                 ) : isContinuousMode ? (
                   <Radio className="w-6 h-6 text-white animate-pulse" />
                 ) : isRecording ? (
                   <MicOff className="w-6 h-6 text-white" />
                 ) : (
-                  <Mic className="w-6 h-6 text-gray-300" />
+                  <Mic className="w-6 h-6 text-emerald-300" />
                 )}
               </Button>
             </div>
