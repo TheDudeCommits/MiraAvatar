@@ -327,28 +327,56 @@ export default function UnifiedChat() {
     }
   };
 
-  // Format CV analysis for display
+  // Format CV analysis for display with improved styling
   const formatCVAnalysis = (analysis: any) => {
-    return `# CV Analysis Results
+    const score = analysis.score || 0;
+    const scoreColor = score < 50 ? 'text-red-400' : score < 80 ? 'text-yellow-400' : 'text-green-400';
+    const scoreBgColor = score < 50 ? 'bg-red-500/20 border-red-400/30' : score < 80 ? 'bg-yellow-500/20 border-yellow-400/30' : 'bg-green-500/20 border-green-400/30';
+    
+    return `<div class="cv-analysis-container space-y-6">
+      <!-- Header with Score -->
+      <div class="text-center">
+        <h1 class="text-2xl font-bold text-white mb-4">CV Analysis Results</h1>
+        <div class="${scoreBgColor} rounded-xl p-4 border-2 inline-block">
+          <div class="text-sm text-gray-300 mb-1">Overall Score</div>
+          <div class="${scoreColor} text-3xl font-bold">${score}/100</div>
+        </div>
+      </div>
 
-## Overall Score: ${analysis.score}/100
+      <!-- Strengths and Improvements Side by Side -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Strengths Box -->
+        <div class="bg-green-500/20 border-2 border-green-400/30 rounded-xl p-4">
+          <h2 class="text-lg font-semibold text-green-400 mb-3 flex items-center">
+            <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+            Key Strengths
+          </h2>
+          <ul class="space-y-2">
+            ${analysis.strengths?.map((s: string) => `<li class="text-sm text-gray-200 flex items-start"><span class="text-green-400 mr-2">•</span><span>${s}</span></li>`).join('') || '<li class="text-sm text-gray-300">Strong technical background identified</li>'}
+          </ul>
+        </div>
 
-## Key Strengths
-${analysis.strengths.map((s: string) => `• ${s}`).join('\n')}
+        <!-- Improvements Box -->
+        <div class="bg-red-500/20 border-2 border-red-400/30 rounded-xl p-4">
+          <h2 class="text-lg font-semibold text-red-400 mb-3 flex items-center">
+            <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+            Areas for Improvement
+          </h2>
+          <ul class="space-y-2">
+            ${analysis.improvements?.map((i: string) => `<li class="text-sm text-gray-200 flex items-start"><span class="text-red-400 mr-2">•</span><span>${i}</span></li>`).join('') || '<li class="text-sm text-gray-300">Enhancement opportunities identified</li>'}
+          </ul>
+        </div>
+      </div>
 
-## Areas for Improvement  
-${analysis.improvements.map((i: string) => `• ${i}`).join('\n')}
-
-## Detailed Assessment
-
-**Strengths:** ${analysis.strengths?.join(', ') || 'Strong technical background and leadership experience'}
-**Weaknesses:** ${analysis.improvements?.join(', ') || 'Areas identified for enhancement'}
-
-## Actionable Steps
-${analysis.actionableSteps?.map((step: string, index: number) => `${index + 1}. ${step}`).join('\n') || 'Focus on improving presentation clarity and adding specific achievement examples'}
-
-## Professional Feedback
-${analysis.feedback}`;
+      <!-- Professional Feedback -->
+      <div class="bg-blue-500/20 border-2 border-blue-400/30 rounded-xl p-4">
+        <h2 class="text-lg font-semibold text-blue-400 mb-3 flex items-center">
+          <span class="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+          Professional Feedback
+        </h2>
+        <p class="text-sm text-gray-200 leading-relaxed">${analysis.feedback || 'Comprehensive analysis completed with actionable insights.'}</p>
+      </div>
+    </div>`;
   };
 
   // Play audio response
@@ -971,7 +999,9 @@ ${analysis.feedback}`;
                           }`}
                         >
                           <div className="prose prose-sm prose-invert max-w-none break-words overflow-hidden text-left">
-                            {message.content.includes('#') ? (
+                            {message.content.includes('<div class="cv-analysis-container') ? (
+                              <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                            ) : message.content.includes('#') ? (
                               <div dangerouslySetInnerHTML={{ 
                                 __html: message.content
                                   .replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mb-3 text-white text-left">$1</h1>')
