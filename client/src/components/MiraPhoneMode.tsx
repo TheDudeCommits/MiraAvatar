@@ -261,6 +261,7 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
         videoRef.current.currentTime = 0;
         
         // Start both immediately with no Promise.all delay
+        videoRef.current.playbackRate = 0.85;
         audio.play();
         videoRef.current.play();
         
@@ -306,7 +307,7 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
 
     const handleVideoEnd = () => {
       if (isMiraActive && isVideoReady) {
-        console.log('Mira video ended, looping...');
+        console.log('Mira video ended, looping at 0.85x speed...');
         video.currentTime = 0;
         video.playbackRate = 0.85;
         video.play();
@@ -500,6 +501,12 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
             playsInline
             loop
             preload="auto"
+            onPlay={() => {
+              if (videoRef.current) {
+                videoRef.current.playbackRate = 0.85;
+                console.log('Video playing at 0.85x speed');
+              }
+            }}
             onLoadedData={() => {
               console.log('Mira video loaded successfully');
               if (!isVideoReady) {
