@@ -73,21 +73,21 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({ isPlaying, audioElement 
   }, [audioElement, isPlaying]);
 
   return (
-    <div className={`fixed bottom-32 right-12 z-50 transition-all duration-500 ${
+    <div className={`fixed bottom-8 right-8 z-50 transition-all duration-500 ${
       showAvatar ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none'
     }`} style={{ backgroundColor: 'transparent' }}>
       <div className="relative" style={{ backgroundColor: 'transparent' }}>
-        {/* Mira Avatar Video */}
+        {/* Mira Avatar Video - Responsive sizing */}
         <video
           ref={videoRef}
           className="rounded-3xl shadow-2xl border-3 border-emerald-400/40"
           style={{
             width: 'auto',
-            height: '280px',
+            height: 'clamp(320px, 35vh, 400px)',
             backgroundColor: 'transparent',
-            maxWidth: '220px',
+            maxWidth: 'clamp(250px, 25vw, 320px)',
             objectFit: 'contain',
-            filter: 'drop-shadow(0 0 20px rgba(16, 185, 129, 0.3))'
+            filter: 'drop-shadow(0 0 16px rgba(16, 185, 129, 0.24))'
           }}
           muted
           playsInline
@@ -103,23 +103,23 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({ isPlaying, audioElement 
           <source src={miraVideo} type="video/mp4" />
         </video>
         
-        {/* Enhanced glow effect when active */}
+        {/* Enhanced glow effect when active - reduced by 20% */}
         {showAvatar && (
-          <div className="absolute inset-0 rounded-3xl bg-emerald-400/25 blur-lg animate-pulse" style={{ backgroundColor: 'rgba(16, 185, 129, 0.25)' }}></div>
+          <div className="absolute inset-0 rounded-3xl bg-emerald-400/20 blur-lg animate-pulse" style={{ backgroundColor: 'rgba(16, 185, 129, 0.20)' }}></div>
         )}
         
-        {/* Enhanced name label */}
+        {/* Enhanced name label - responsive positioning */}
         {showAvatar && (
-          <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2">
-            <div className="bg-black/90 backdrop-blur-md rounded-xl px-4 py-2 border-2 border-emerald-400/40 shadow-lg">
+          <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2">
+            <div className="bg-black/90 backdrop-blur-md rounded-xl px-4 py-2 border-2 border-emerald-400/32 shadow-lg">
               <span className="text-emerald-300 text-sm titillium-web-bold tracking-wider">MIRA</span>
             </div>
           </div>
         )}
         
-        {/* Additional ambient glow for better presence */}
+        {/* Additional ambient glow for better presence - reduced by 20% */}
         {showAvatar && (
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald-400/10 to-cyan-400/10 blur-2xl scale-110 animate-pulse"></div>
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald-400/8 to-cyan-400/8 blur-2xl scale-110 animate-pulse"></div>
         )}
       </div>
     </div>
