@@ -1001,7 +1001,7 @@ export default function UnifiedChat() {
                       {/* Message bubble */}
                       <div className={`flex-1 max-w-[75%] min-w-0 ${message.type === 'user' ? 'text-right' : 'text-left'}`}>
                         <div
-                          className={`message-bubble group relative titillium-web-regular inline-block p-3 rounded-2xl shadow-xl backdrop-blur-xl border transition-all duration-300 hover:shadow-2xl max-h-[60vh] overflow-y-auto ${
+                          className={`message-bubble group relative titillium-web-regular inline-block p-3 rounded-2xl shadow-xl backdrop-blur-xl border transition-all duration-300 hover:shadow-2xl ${
                             message.type === 'user'
                               ? 'bg-gradient-to-br from-green-600/70 to-emerald-600/70 text-white border-green-400/20 rounded-br-md'
                               : 'bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600/20 text-white rounded-bl-md'
