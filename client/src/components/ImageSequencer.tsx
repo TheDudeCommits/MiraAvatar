@@ -40,7 +40,8 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
   const [playbackRate, setPlaybackRate] = useState(0.85);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const totalFrames = 350; // 0 to 349
-  const bufferSize = 20; // Reduced buffer for faster loading with optimized images
+  const bufferSize = 30; // Increased buffer for instant playback
+  const [preloadedFrames, setPreloadedFrames] = useState<Set<number>>(new Set());
 
   // Optimized frame loading - only load current frame and buffer
   const loadFrame = useCallback((frameIndex: number): Promise<HTMLImageElement> => {
@@ -56,6 +57,7 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
       
       img.onload = () => {
         setFrameCache(prev => new Map(prev).set(frameIndex, img));
+        setPreloadedFrames(prev => new Set(prev).add(frameIndex));
         resolve(img);
       };
       
@@ -78,41 +80,59 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
       }
     }
 
-    // Load frames in smaller batches for optimized JPEGs (faster loading)
-    const batchSize = 5;
-    for (let i = 0; i < framesToLoad.length; i += batchSize) {
-      const batch = framesToLoad.slice(i, i + batchSize);
-      await Promise.allSettled(batch.map(frameIndex => loadFrame(frameIndex)));
-      // Small delay between batches to prevent blocking
-      if (i + batchSize < framesToLoad.length) {
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
-    }
+    // Load all frames simultaneously for instant loading
+    await Promise.allSettled(framesToLoad.map(frameIndex => loadFrame(frameIndex)));
   }, [frameCache, bufferSize, totalFrames, loadFrame]);
 
-  // Initialize with first frame and buffer
+  // Aggressive preloading strategy for instant playback
   useEffect(() => {
     const initializeSequencer = async () => {
       try {
-        // Load first frame immediately
-        await loadFrame(0);
+        console.log('🚀 Starting aggressive preload strategy...');
+        
+        // Load first 30 frames immediately for instant start (optimized balance)
+        const initialFrames = Array.from({length: 30}, (_, i) => i);
+        await Promise.allSettled(initialFrames.map(frameIndex => loadFrame(frameIndex)));
+        
+        console.log('✅ First 30 frames preloaded');
         setIsLoaded(true);
         onLoadedData?.();
         onCanPlay?.();
+        onCanPlayThrough?.();
         
-        // Preload initial buffer in background
-        preloadBuffer(0).then(() => {
-          onCanPlayThrough?.();
-          console.log('✅ Image sequencer ready with buffered frames');
-        });
+        // Continue loading remaining frames in background with smart chunking
+        const remainingFrames = Array.from({length: totalFrames - 30}, (_, i) => i + 30);
+        
+        // Load in chunks of 20 frames with small delays for non-blocking
+        const chunkSize = 20;
+        let chunkIndex = 0;
+        
+        const loadChunk = () => {
+          if (chunkIndex < remainingFrames.length) {
+            const chunk = remainingFrames.slice(chunkIndex, chunkIndex + chunkSize);
+            Promise.allSettled(chunk.map(frameIndex => loadFrame(frameIndex)))
+              .then(() => {
+                chunkIndex += chunkSize;
+                setTimeout(loadChunk, 100); // Small delay between chunks
+              });
+          } else {
+            console.log('🎯 All 350 frames fully preloaded');
+          }
+        };
+        
+        setTimeout(loadChunk, 500); // Start background loading after initial frames
+        
       } catch (error) {
         console.error('Error initializing image sequencer:', error);
-        onError?.(error as Error);
+        if (onError) {
+          const errorEvent = error instanceof Event ? error : new ErrorEvent('error');
+          onError(errorEvent);
+        }
       }
     };
-
+    
     initializeSequencer();
-  }, [loadFrame, preloadBuffer, onLoadedData, onCanPlay, onCanPlayThrough, onError]);
+  }, [loadFrame, onLoadedData, onCanPlay, onCanPlayThrough, onError, totalFrames]);
 
   // Smart buffer management - preload ahead of current frame
   useEffect(() => {
