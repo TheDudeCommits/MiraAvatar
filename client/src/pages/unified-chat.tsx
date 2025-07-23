@@ -65,7 +65,7 @@ export default function UnifiedChat() {
 
   // Initialize WebSocket connection when voice modes are used
   useEffect(() => {
-    if (interactionMode !== 'text' && !isConnected) {
+    if (interactionMode !== 'text' && interactionMode !== 'continuous' && !isConnected) {
       initializeVoiceChat();
     }
 
@@ -74,13 +74,24 @@ export default function UnifiedChat() {
       setIframeLoaded(false);
     }
 
-    // Cleanup on mode change
+    // Cleanup resources when switching away from voice modes
     return () => {
-      if (interactionMode === 'text' && wsRef.current) {
+      if (interactionMode === 'text') {
         cleanupVoiceResources();
       }
     };
   }, [interactionMode]);
+
+  // Separate effect for reconnecting voice modes after using Mira or Neural Link
+  useEffect(() => {
+    if ((interactionMode === 'click-to-talk' || interactionMode === 'continuous') && !isConnected) {
+      // Small delay to ensure cleanup is complete
+      const timer = setTimeout(() => {
+        initializeVoiceChat();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [interactionMode, isConnected]);
 
   // Initialize voice chat connection
   const initializeVoiceChat = async () => {
@@ -563,7 +574,7 @@ export default function UnifiedChat() {
     if (!isContinuousMode) return;
 
     try {
-      if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'inactive') {
+      if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
         await initializeMediaRecorder();
       }
 
