@@ -66,7 +66,7 @@ Provide feedback in JSON format:
         ],
         response_format: { type: "json_object" },
         temperature: 0.2, // Optimized for speed and consistency
-        max_tokens: 400 // Reduced for faster processing
+        max_tokens: 800 // Doubled for more detailed responses
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -122,7 +122,7 @@ Your primary focus is helping users with their needs.
           }
         ],
         temperature: 0.3, // Optimized for speed
-        max_tokens: 150 // Reduced for faster chat responses
+        max_tokens: 300 // Doubled for more detailed chat responses
       });
 
       const text = response.choices[0].message.content || "I'm sorry, I couldn't generate a response.";
@@ -177,7 +177,7 @@ Your primary focus is helping users with their needs.
           }
         ],
         temperature: 0.3, // Optimized for speed
-        max_tokens: 80 // Reduced for faster processing
+        max_tokens: 160 // Doubled for more detailed voice responses
       });
       
       const responseText = response.choices[0].message.content || "I understand.";
@@ -256,7 +256,7 @@ Your primary focus is helping users with their needs.
         model: "gpt-4o-mini",
         messages: messages,
         temperature: 0.3,
-        max_tokens: 150
+        max_tokens: 300
       });
 
       const result = response.choices[0].message.content;
