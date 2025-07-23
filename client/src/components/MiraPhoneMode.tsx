@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Loader2, ArrowLeft } from 'lucide-react';
-import ImageSequencer, { ImageSequencerRef } from './ImageSequencer';
 
 interface MiraPhoneModeProps {
   isRecording: boolean;
@@ -17,7 +16,8 @@ export interface MiraPhoneModeRef {
   handleVoiceResponse: (audioUrl: string, transcript: string, onAudioEnd?: () => void) => Promise<void>;
 }
 
-// Using image sequence instead of video
+// Use newest video file with no background
+const miraVideo = '/mira-avatar-newest.mp4';
 
 // Elegant starfield visualization with distant glowing stars
 const DataCluster = () => {
@@ -186,37 +186,44 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
   onToggleRecording,
   onBack 
 }, ref) => {
-  const sequencerRef = useRef<ImageSequencerRef>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isSequencerReady, setIsSequencerReady] = useState(false);
-  const [isSequencerPreloaded, setIsSequencerPreloaded] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isVideoPreloaded, setIsVideoPreloaded] = useState(false);
 
-  // Preload image sequence immediately on component mount
+  // Preload video immediately on component mount
   useEffect(() => {
-    if (!isSequencerPreloaded) {
-      console.log('🎬 Preloading Mira image sequence...');
+    const video = videoRef.current;
+    if (video && !isVideoPreloaded) {
+      console.log('🎬 Preloading Mira video...');
+      
+      // Force preload and prepare video
+      video.preload = 'auto';
+      video.load();
       
       const handleCanPlayThrough = () => {
-        console.log('✅ Image sequence fully preloaded and ready for instant playback');
-        setIsSequencerPreloaded(true);
-        setIsSequencerReady(true);
-        if (sequencerRef.current) {
-          sequencerRef.current.setPlaybackRate(0.85);
-        }
+        console.log('✅ Video fully preloaded and ready for instant playback');
+        setIsVideoPreloaded(true);
+        setIsVideoReady(true);
+        video.playbackRate = 0.85;
       };
       
       const handleLoadedData = () => {
-        console.log('📹 Image sequence data loaded');
-        setIsSequencerReady(true);
-        if (sequencerRef.current) {
-          sequencerRef.current.setPlaybackRate(0.85);
-        }
+        console.log('📹 Video data loaded');
+        setIsVideoReady(true);
+        video.playbackRate = 0.85;
       };
       
-      // Image sequence will handle its own preloading
-      handleCanPlayThrough();
+      // Use multiple events to ensure readiness
+      video.addEventListener('canplaythrough', handleCanPlayThrough);
+      video.addEventListener('loadeddata', handleLoadedData);
+      
+      return () => {
+        video.removeEventListener('canplaythrough', handleCanPlayThrough);
+        video.removeEventListener('loadeddata', handleLoadedData);
+      };
     }
-  }, [isSequencerPreloaded]);
+  }, [isVideoPreloaded]);
 
   // Handle voice response with perfect audio-video sync and no lag
   const handleVoiceResponse = useCallback(async (audioUrl: string, transcript: string, onAudioEnd?: () => void) => {
@@ -246,16 +253,17 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
 
       await audioReadyPromise;
 
-      // Ensure sequencer is preloaded and ready for instant playback
-      if (sequencerRef.current && isSequencerPreloaded && isSequencerReady) {
-        console.log('🎬 Both audio and image sequence ready - starting instant synchronized playback');
+      // Ensure video is preloaded and ready for instant playback
+      if (videoRef.current && isVideoPreloaded && isVideoReady) {
+        console.log('🎬 Both audio and video ready - starting instant synchronized playback');
         
-        // Reset sequencer position and prepare for smooth start
-        sequencerRef.current.play();
+        // Reset video position and prepare for smooth start
+        videoRef.current.currentTime = 0;
         
         // Start both immediately with no Promise.all delay
-        sequencerRef.current.setPlaybackRate(0.85);
+        videoRef.current.playbackRate = 0.85;
         audio.play();
+        videoRef.current.play();
         
         console.log('✅ Instant synchronized playback started');
       } else {
@@ -265,9 +273,9 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
 
       // Handle audio end with fade-out effect
       audio.onended = () => {
-        console.log('🏁 Audio ended, stopping sequencer and triggering fast fade-out');
-        if (sequencerRef.current) {
-          sequencerRef.current.pause();
+        console.log('🏁 Audio ended, stopping video and triggering fast fade-out');
+        if (videoRef.current) {
+          videoRef.current.pause();
         }
         // Fast fade-out - 100ms delay as requested
         if (onAudioEnd) {
@@ -281,7 +289,7 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
       console.error('❌ Error with synchronized playback:', error);
       if (onAudioEnd) onAudioEnd();
     }
-  }, [isSequencerReady, isSequencerPreloaded]);
+  }, [isVideoReady, isVideoPreloaded]);
 
   // Remove the old video control effect and replace with new sync logic
   useEffect(() => {
@@ -294,8 +302,21 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
   }), [handleVoiceResponse]);
 
   useEffect(() => {
-    // Image sequencer handles its own looping, no additional effect needed
-  }, [isMiraActive, isSequencerReady]);
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleVideoEnd = () => {
+      if (isMiraActive && isVideoReady) {
+        console.log('Mira video ended, looping at 0.85x speed...');
+        video.currentTime = 0;
+        video.playbackRate = 0.85;
+        video.play();
+      }
+    };
+
+    video.addEventListener('ended', handleVideoEnd);
+    return () => video.removeEventListener('ended', handleVideoEnd);
+  }, [isMiraActive, isVideoReady]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col justify-center items-center">
@@ -470,40 +491,45 @@ export const MiraPhoneMode = forwardRef<MiraPhoneModeRef, MiraPhoneModeProps>(({
             </>
           )}
           
-          <ImageSequencer
-            ref={sequencerRef}
-            isPlaying={isMiraActive}
+          <video
+            ref={videoRef}
             className="max-w-full max-h-full object-contain relative z-10"
             style={{ 
               backgroundColor: 'transparent'
             }}
-            frameRate={30}
-            loop={true}
+            muted
+            playsInline
+            loop
+            preload="auto"
             onPlay={() => {
-              if (sequencerRef.current) {
-                sequencerRef.current.setPlaybackRate(0.85);
-                console.log('Image sequence playing at 0.85x speed');
+              if (videoRef.current) {
+                videoRef.current.playbackRate = 0.85;
+                console.log('Video playing at 0.85x speed');
               }
             }}
             onLoadedData={() => {
-              console.log('Mira image sequence loaded successfully');
-              if (!isSequencerReady) {
-                setIsSequencerReady(true);
-                if (sequencerRef.current) {
-                  sequencerRef.current.setPlaybackRate(0.85);
+              console.log('Mira video loaded successfully');
+              if (!isVideoReady) {
+                setIsVideoReady(true);
+                if (videoRef.current) {
+                  videoRef.current.playbackRate = 0.85;
                 }
               }
             }}
             onCanPlayThrough={() => {
-              console.log('Mira image sequence can play through without buffering');
-              setIsSequencerPreloaded(true);
-              setIsSequencerReady(true);
+              console.log('Mira video can play through without buffering');
+              setIsVideoPreloaded(true);
+              setIsVideoReady(true);
             }}
             onError={(e) => {
-              console.error('Mira image sequence error:', e);
+              console.error('Mira video error:', e);
+              console.error('Video source:', miraVideo);
             }}
-            onCanPlay={() => console.log('Mira image sequence can play')}
-          />
+            onCanPlay={() => console.log('Mira video can play')}
+            onLoadStart={() => console.log('Mira video load started')}
+          >
+            <source src={miraVideo} type="video/mp4" />
+          </video>
         </div>
 
         {/* Proportionate caption overlay when Mira is talking */}

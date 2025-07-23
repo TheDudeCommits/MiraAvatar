@@ -56,18 +56,6 @@ app.use(express.urlencoded({ extended: false }));
 // Serve audio files
 app.use('/audio', express.static(path.join(process.cwd(), 'dist', 'public', 'audio')));
 
-// Serve optimized Mira frames with proper MIME types and cache headers
-app.use('/mira_frames_optimized', express.static(path.join(process.cwd(), 'public', 'mira_frames_optimized'), {
-  maxAge: '1d', // Cache for 1 day
-  etag: false,
-  lastModified: false,
-  setHeaders: (res, path) => {
-    if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
-      res.setHeader('Content-Type', 'image/jpeg');
-    }
-  }
-}));
-
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

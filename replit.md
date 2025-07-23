@@ -103,16 +103,7 @@ The application is designed to be easily deployable on Replit with minimal confi
 
 ## Recent Changes
 
-### July 23, 2025 - Latest Update: Optimized Image Sequencer Implementation
-- **High-Performance Image Sequencer**: Replaced video with optimized 350-frame image sequence using efficient buffering system
-- **Massive Size Reduction**: Compressed original 48MB PNG sequence to 5.5MB optimized JPEG sequence (88% reduction)
-- **Smart Loading Strategy**: Implements frame-by-frame loading with 20-frame buffer instead of preloading all 350 images
-- **Performance Optimizations**: Batched loading, frame caching, and non-blocking background preloading for smooth playback
-- **Memory Efficient**: Uses Map-based cache system with dynamic buffering to prevent browser memory overload
-- **Quality Maintained**: 50% resize with 75% JPEG quality preserves visual fidelity while enabling fast loading
-- **Doubled OpenAI Token Limits**: CV analysis (800), chat (300), voice (160) tokens for more comprehensive responses
-
-### July 23, 2025 - Earlier Update: Enhanced Mira Persona and Communication Style
+### July 23, 2025 - Latest Update: Enhanced Mira Persona and Communication Style
 - **Refined Mira Persona**: Updated all OpenAI system prompts with refined communication guidelines
 - **Enhanced Communication Style**: Enthusiastic and snarky tone, avoiding formal language and superficial admiration
 - **Strict Language Rules**: NO use of "—" character, use normal human language, keep responses concise but not cold
