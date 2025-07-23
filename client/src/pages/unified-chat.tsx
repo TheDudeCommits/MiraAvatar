@@ -1011,7 +1011,14 @@ export default function UnifiedChat() {
                                   .replace(/^(\d+)\. (.+)$/gm, '<div class="mb-1 text-sm text-left"><span class="text-blue-300 font-semibold">$1.</span> $2</div>')
                               }} />
                             ) : (
-                              <p className="m-0 text-sm leading-relaxed whitespace-pre-wrap text-left">{message.content}</p>
+                              <p 
+                                className="m-0 text-sm leading-relaxed whitespace-pre-wrap text-left"
+                                dangerouslySetInnerHTML={{
+                                  __html: message.content
+                                    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-blue-300">$1</strong>')
+                                    .replace(/\n/g, '<br>')
+                                }}
+                              />
                             )}
                           </div>
 
