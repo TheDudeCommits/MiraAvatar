@@ -103,15 +103,15 @@ The application is designed to be easily deployable on Replit with minimal confi
 
 ## Recent Changes
 
-### July 23, 2025 - Latest Update: Mira Persona Integration and Video Update
-- **Mira Persona Implementation**: Updated all OpenAI system prompts with comprehensive Mira persona
-- **Cyberpunk Character**: Mira is now a helpful assistant from a dystopian cyberpunk future with deep knowledge
-- **Enhanced Personality**: Friendly, outgoing, witty when appropriate, professional when needed
-- **Backstory Integration**: Mira witnessed humanity's dark path and guides users to save their own future
+### July 23, 2025 - Latest Update: Enhanced Mira Persona and Communication Style
+- **Refined Mira Persona**: Updated all OpenAI system prompts with refined communication guidelines
+- **Enhanced Communication Style**: Enthusiastic and snarky tone, avoiding formal language and superficial admiration
+- **Strict Language Rules**: NO use of "—" character, use normal human language, keep responses concise but not cold
 - **Updated Video Source**: Changed to latest vertical video file without background for seamless integration
+- **CV Analysis Specialization**: Detailed, actionable steps for CV improvement with specific professional feedback
 - **Multi-Language Support**: Explicitly configured to respond in user's language (English, Chinese, Japanese, etc.)
-- **CV Analysis Focus**: Specialized prompts for thorough CV analysis with practical, actionable insights
-- **Consistent Voice**: Unified personality across all interaction modes (text, voice, CV analysis)
+- **TypeScript Fixes**: Resolved duplicate function implementations and type safety issues
+- **Consistent Voice**: Unified personality across all interaction modes with cyberpunk backstory
 
 ### July 21, 2025 - Earlier Update: Perfect Audio-Video Synchronization and Fade-Out Effects
 - **Perfect Audio-Video Sync**: Implemented synchronized playback using Promise.all for simultaneous audio and video start
