@@ -975,17 +975,29 @@ export default function UnifiedChat() {
                       className={`flex items-start gap-3 ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                     >
                       {/* Avatar */}
-                      <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+                      <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center relative group transition-all duration-300 ${
                         message.type === 'user' 
                           ? 'shadow-lg' 
-                          : 'bg-gradient-to-br from-gray-700 to-gray-800 border border-primary/30 shadow-lg'
+                          : 'bg-gradient-to-br from-gray-700 to-gray-800 border border-primary/30 shadow-lg hover:shadow-xl hover:scale-105'
                       }`}
                       style={message.type === 'user' ? {
                         background: 'linear-gradient(135deg, #2e8b57 0%, #40e0d0 100%)'
                       } : undefined}>
                         {message.type === 'user' ? 
                           <User className="w-6 h-6 text-white" /> : 
-                          <Bot className="w-6 h-6 text-primary" />
+                          <>
+                            <Bot className={`w-6 h-6 text-primary transition-all duration-300 ${message.audioUrl ? 'group-hover:opacity-0 group-hover:scale-75' : ''}`} />
+                            {message.audioUrl && (
+                              <Button
+                                onClick={() => playAudio(message.audioUrl!)}
+                                variant="ghost"
+                                size="sm"
+                                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-0 group-hover:scale-100 rounded-full bg-primary/20 hover:bg-primary/30 border-0 p-0"
+                              >
+                                <Volume2 className="w-4 h-4 text-primary" />
+                              </Button>
+                            )}
+                          </>
                         }
                       </div>
 
@@ -1022,18 +1034,7 @@ export default function UnifiedChat() {
                             )}
                           </div>
 
-                          {message.audioUrl && (
-                            <div className="mt-3 flex items-center gap-2">
-                              <Button
-                                onClick={() => playAudio(message.audioUrl!)}
-                                variant="ghost"
-                                size="sm"
-                                className="titillium-web-semibold sleek-button h-7 w-7 rounded-lg p-1"
-                              >
-                                <Volume2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          )}
+
 
                           {/* Timestamp - hidden by default, shown on hover */}
                           <div className="absolute -bottom-6 left-0 text-xs opacity-0 group-hover:opacity-50 font-mono transition-opacity duration-200 pointer-events-none">
