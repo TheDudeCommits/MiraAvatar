@@ -103,7 +103,17 @@ The application is designed to be easily deployable on Replit with minimal confi
 
 ## Recent Changes
 
-### July 21, 2025 - Latest Update: Perfect Audio-Video Synchronization and Fade-Out Effects
+### July 23, 2025 - Latest Update: Mira Persona Integration and Video Update
+- **Mira Persona Implementation**: Updated all OpenAI system prompts with comprehensive Mira persona
+- **Cyberpunk Character**: Mira is now a helpful assistant from a dystopian cyberpunk future with deep knowledge
+- **Enhanced Personality**: Friendly, outgoing, witty when appropriate, professional when needed
+- **Backstory Integration**: Mira witnessed humanity's dark path and guides users to save their own future
+- **Updated Video Source**: Changed to latest vertical video file without background for seamless integration
+- **Multi-Language Support**: Explicitly configured to respond in user's language (English, Chinese, Japanese, etc.)
+- **CV Analysis Focus**: Specialized prompts for thorough CV analysis with practical, actionable insights
+- **Consistent Voice**: Unified personality across all interaction modes (text, voice, CV analysis)
+
+### July 21, 2025 - Earlier Update: Perfect Audio-Video Synchronization and Fade-Out Effects
 - **Perfect Audio-Video Sync**: Implemented synchronized playback using Promise.all for simultaneous audio and video start
 - **Automatic Fade-Out**: Added elegant fade-out effect when audio ends, transitioning smoothly back to data cluster
 - **Original Video Quality Restored**: Removed all artificial brightness/contrast/saturation filters for natural appearance
