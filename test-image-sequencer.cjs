@@ -10,8 +10,8 @@ const path = require('path');
 
 console.log('🧪 Testing Image Sequencer Setup...\n');
 
-// Check if public/mira_frames directory exists
-const framesDir = path.join(__dirname, 'public', 'mira_frames');
+// Check if public/mira_frames_optimized directory exists
+const framesDir = path.join(__dirname, 'public', 'mira_frames_optimized');
 if (!fs.existsSync(framesDir)) {
   console.error('❌ Error: public/mira_frames directory not found');
   process.exit(1);
@@ -20,7 +20,7 @@ if (!fs.existsSync(framesDir)) {
 console.log('✅ Frames directory exists:', framesDir);
 
 // Count frame files
-const frameFiles = fs.readdirSync(framesDir).filter(file => file.startsWith('frame_') && file.endsWith('.png'));
+const frameFiles = fs.readdirSync(framesDir).filter(file => file.startsWith('frame_') && file.endsWith('.jpg'));
 console.log(`✅ Found ${frameFiles.length} frame files`);
 
 if (frameFiles.length === 0) {
@@ -34,10 +34,10 @@ const missingFrames = [];
 
 for (let i = 0; i < expectedFrames; i++) {
   const frameNumber = String(i).padStart(4, '0');
-  const framePath = path.join(framesDir, `frame_${frameNumber}.png`);
+  const framePath = path.join(framesDir, `frame_${frameNumber}.jpg`);
   
   if (!fs.existsSync(framePath)) {
-    missingFrames.push(`frame_${frameNumber}.png`);
+    missingFrames.push(`frame_${frameNumber}.jpg`);
   }
 }
 

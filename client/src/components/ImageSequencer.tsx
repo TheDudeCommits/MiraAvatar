@@ -40,7 +40,7 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
   const [playbackRate, setPlaybackRate] = useState(0.85);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const totalFrames = 350; // 0 to 349
-  const bufferSize = 50; // Buffer next 50 frames for smooth playback
+  const bufferSize = 20; // Reduced buffer for faster loading with optimized images
 
   // Optimized frame loading - only load current frame and buffer
   const loadFrame = useCallback((frameIndex: number): Promise<HTMLImageElement> => {
@@ -52,7 +52,7 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
 
       const img = new Image();
       const frameNumber = String(frameIndex).padStart(4, '0');
-      img.src = `/mira_frames/frame_${frameNumber}.png`;
+      img.src = `/mira_frames_optimized/frame_${frameNumber}.jpg`;
       
       img.onload = () => {
         setFrameCache(prev => new Map(prev).set(frameIndex, img));
@@ -78,11 +78,15 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
       }
     }
 
-    // Load frames in batches to avoid overwhelming the browser
-    const batchSize = 10;
+    // Load frames in smaller batches for optimized JPEGs (faster loading)
+    const batchSize = 5;
     for (let i = 0; i < framesToLoad.length; i += batchSize) {
       const batch = framesToLoad.slice(i, i + batchSize);
       await Promise.allSettled(batch.map(frameIndex => loadFrame(frameIndex)));
+      // Small delay between batches to prevent blocking
+      if (i + batchSize < framesToLoad.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
     }
   }, [frameCache, bufferSize, totalFrames, loadFrame]);
 
@@ -191,7 +195,7 @@ const ImageSequencer = forwardRef<ImageSequencerRef, ImageSequencerProps>(({
     const frameNumber = String(currentFrame).padStart(4, '0');
     return (
       <img
-        src={`/mira_frames/frame_${frameNumber}.png`}
+        src={`/mira_frames_optimized/frame_${frameNumber}.jpg`}
         alt={`Mira frame ${currentFrame}`}
         className={className}
         style={style}
