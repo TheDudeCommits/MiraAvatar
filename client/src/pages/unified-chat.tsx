@@ -925,48 +925,34 @@ export default function UnifiedChat() {
         <Card className="flex-1 glass-enhanced cyberpunk-border mb-6 overflow-hidden">
           <CardContent className="p-0 h-full flex flex-col">
             <ScrollArea className="flex-1 p-6 scroll-container scrollbar-thin max-h-[70vh] overflow-y-auto">
-              {messages.length === 0 ? (
-                interactionMode === 'continuous' ? (
-                  <div className="h-full w-full relative">
-                    {/* Neural Link Interface Overlay - faded and auto-hide */}
-                    <div className={`absolute top-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none transition-all duration-1000 ${
-                      iframeLoaded ? 'opacity-0 translate-y-2' : 'opacity-60'
-                    }`}>
-                      <div className="bg-black/60 backdrop-blur-sm border border-emerald-400/30 rounded-lg px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <Bot className="w-5 h-5 text-emerald-400/70 animate-pulse" />
-                          <span className="titillium-web-semibold text-emerald-300/70 text-sm">Neural Link Interface Active</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* iframe fitting the chat interface perfectly */}
-                    <iframe 
-                      ref={iframeRef}
-                      src="https://bey.chat/3090f07a-5a09-4093-9114-d8c1332d7a74" 
-                      width="100%" 
-                      height="100%" 
-                      frameBorder="0" 
-                      allowFullScreen
-                      allow="camera; microphone; fullscreen"
-                      onLoad={() => setIframeLoaded(true)}
-                      style={{ 
-                        border: 'none', 
-                        maxWidth: '100%', 
-                        borderRadius: '12px',
-                        minHeight: '500px'
-                      }}
-                      className="cyberpunk-border w-full h-full"
-                    />
+              {interactionMode === 'continuous' ? (
+                <div className="h-full w-full relative">
+                  {/* Pure Neural Link Interface - no text overlay */}
+                  <iframe 
+                    ref={iframeRef}
+                    src="https://bey.chat/3090f07a-5a09-4093-9114-d8c1332d7a74" 
+                    width="100%" 
+                    height="100%" 
+                    frameBorder="0" 
+                    allowFullScreen
+                    allow="camera; microphone; fullscreen"
+                    onLoad={() => setIframeLoaded(true)}
+                    style={{ 
+                      border: 'none', 
+                      maxWidth: '100%', 
+                      borderRadius: '12px',
+                      minHeight: '500px'
+                    }}
+                    className="cyberpunk-border w-full h-full"
+                  />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="titillium-web-light">Initialize Neural Connection or Upload Data Package</p>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <div className="text-center">
-                      <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p className="titillium-web-light">Initialize Neural Connection or Upload Data Package</p>
-                    </div>
-                  </div>
-                )
+                </div>
               ) : (
                 <div className="space-y-6">
                   {messages.map((message) => (
