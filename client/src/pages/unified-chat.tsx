@@ -4,9 +4,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MiraAvatar } from '@/components/MiraAvatar';
 import { MiraPhoneMode, type MiraPhoneModeRef } from '@/components/MiraPhoneMode';
-import { Mic, MicOff, Send, Upload, Bot, User, Loader2, Radio, FileText, MessageSquare, Volume2 } from 'lucide-react';
+import { ChatSidebar } from '@/components/ChatSidebar';
+import { Mic, MicOff, Send, Upload, Bot, User, Loader2, Radio, FileText, MessageSquare, Volume2, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
+import type { SessionMessage } from '@shared/schema';
 
 interface Message {
   id: string;
@@ -20,6 +24,11 @@ interface Message {
 type InteractionMode = 'text' | 'click-to-talk' | 'mira' | 'continuous';
 
 export default function UnifiedChat() {
+  // Chat session state
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const queryClient = useQueryClient();
+
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -54,6 +63,62 @@ export default function UnifiedChat() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const { toast } = useToast();
+
+  // Session messages query
+  const { data: sessionMessages = [] } = useQuery({
+    queryKey: ["/api/sessions", currentSessionId, "messages"],
+    enabled: !!currentSessionId,
+  });
+
+  // Create session message mutation
+  const createMessageMutation = useMutation({
+    mutationFn: async ({ content, type, messageType, audioUrl }: { 
+      content: string; 
+      type: 'user' | 'assistant'; 
+      messageType?: string;
+      audioUrl?: string; 
+    }) => {
+      if (!currentSessionId) {
+        // Create new session first
+        const newSession = await apiRequest("/api/sessions", "POST", { 
+          title: content.substring(0, 50) 
+        });
+        setCurrentSessionId(newSession.id);
+        return await apiRequest(`/api/sessions/${newSession.id}/messages`, "POST", {
+          content,
+          type,
+          messageType: messageType || 'text',
+          audioUrl
+        });
+      }
+      return await apiRequest(`/api/sessions/${currentSessionId}/messages`, "POST", {
+        content,
+        type,
+        messageType: messageType || 'text',
+        audioUrl
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions", currentSessionId, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
+    },
+  });
+
+  // Load messages from session
+  useEffect(() => {
+    if (sessionMessages.length > 0) {
+      const formattedMessages: Message[] = (sessionMessages as SessionMessage[]).map(msg => ({
+        id: msg.id.toString(),
+        type: msg.type as 'user' | 'assistant',
+        content: msg.content,
+        audioUrl: msg.audioUrl || undefined,
+        timestamp: new Date(msg.createdAt),
+      }));
+      setMessages(formattedMessages);
+    } else if (currentSessionId) {
+      setMessages([]);
+    }
+  }, [sessionMessages, currentSessionId]);
 
   // Auto-scroll to bottom with proper handling for long messages
   useEffect(() => {
@@ -467,35 +532,43 @@ export default function UnifiedChat() {
   const sendTextMessage = async () => {
     if (!inputText.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: inputText,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    const userContent = inputText.trim();
     setInputText('');
     setIsProcessing(true);
 
     try {
+      // Save user message
+      await createMessageMutation.mutateAsync({
+        content: userContent,
+        type: 'user',
+        messageType: 'text'
+      });
+
+      // Get AI response
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: inputText })
+        body: JSON.stringify({ 
+          message: userContent,
+          includeVoice: false
+        })
       });
 
-      const data = await response.json();
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: data.response,
-        timestamp: new Date()
-      };
+      if (!response.ok) {
+        throw new Error('Failed to get response');
+      }
 
-      setMessages(prev => [...prev, assistantMessage]);
+      const data = await response.json();
+
+      // Save assistant message
+      await createMessageMutation.mutateAsync({
+        content: data.response,
+        type: 'assistant',
+        messageType: 'text'
+      });
+
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('Error sending message:', error);
       toast({
         title: "Error",
         description: "Failed to send message. Please try again.",
@@ -854,15 +927,44 @@ export default function UnifiedChat() {
     );
   }
 
+  // Session management handlers
+  const handleSessionSelect = (sessionId: number) => {
+    setCurrentSessionId(sessionId);
+  };
+
+  const handleNewChat = () => {
+    setCurrentSessionId(null);
+    setMessages([]);
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white relative overflow-hidden flex">
       {/* Subtle background effects */}
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gradient-to-r from-blue-500/10 to-indigo-500/10 blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-gradient-to-r from-purple-500/10 to-blue-500/10 blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-8 h-screen flex flex-col min-h-0 cyber-grid">
+      {/* Chat Sidebar */}
+      <ChatSidebar
+        currentSessionId={currentSessionId || undefined}
+        onSessionSelect={handleSessionSelect}
+        onNewChat={handleNewChat}
+        isCollapsed={isSidebarCollapsed}
+      />
+
+      <div className="relative z-10 flex-1 px-6 py-8 h-screen flex flex-col min-h-0 cyber-grid">
+        {/* Sidebar Toggle Button */}
+        <div className="absolute top-4 left-4 z-20">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="titillium-web-semibold hover:bg-accent"
+          >
+            {isSidebarCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </Button>
+        </div>
         {/* Header with interaction modes */}
         <div className="mb-6">
           <h1 className="text-4xl titillium-web-bold text-center mb-6 text-emerald-300 font-black tracking-wider relative">

@@ -41,6 +41,31 @@ export const voiceSessions = pgTable("voice_sessions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const chatSessions = pgTable("chat_sessions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+  messageCount: integer("message_count").notNull().default(0),
+  lastMessage: text("last_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const sessionMessages = pgTable("session_messages", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull().references(() => chatSessions.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  type: text("type").notNull(), // user, assistant
+  messageType: text("message_type").notNull().default("text"), // text, voice, cv_analysis
+  audioUrl: text("audio_url"),
+  metadata: jsonb("metadata").$type<{
+    cvAnalysisId?: number;
+    voiceSessionId?: string;
+    responseLength?: number;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -62,6 +87,19 @@ export const insertVoiceSessionSchema = createInsertSchema(voiceSessions).pick({
   status: true,
 });
 
+export const insertChatSessionSchema = createInsertSchema(chatSessions).pick({
+  title: true,
+});
+
+export const insertSessionMessageSchema = createInsertSchema(sessionMessages).pick({
+  sessionId: true,
+  content: true,
+  type: true,
+  messageType: true,
+  audioUrl: true,
+  metadata: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type CvAnalysis = typeof cvAnalyses.$inferSelect;
@@ -70,3 +108,7 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type VoiceSession = typeof voiceSessions.$inferSelect;
 export type InsertVoiceSession = z.infer<typeof insertVoiceSessionSchema>;
+export type ChatSession = typeof chatSessions.$inferSelect;
+export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
+export type SessionMessage = typeof sessionMessages.$inferSelect;
+export type InsertSessionMessage = z.infer<typeof insertSessionMessageSchema>;

@@ -3,6 +3,8 @@ import {
   cvAnalyses, 
   chatMessages, 
   voiceSessions,
+  chatSessions,
+  sessionMessages,
   type User, 
   type InsertUser, 
   type CvAnalysis, 
@@ -10,10 +12,14 @@ import {
   type ChatMessage,
   type InsertChatMessage,
   type VoiceSession,
-  type InsertVoiceSession
+  type InsertVoiceSession,
+  type ChatSession,
+  type InsertChatSession,
+  type SessionMessage,
+  type InsertSessionMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -28,6 +34,21 @@ export interface IStorage {
   createVoiceSession(session: InsertVoiceSession): Promise<VoiceSession>;
   getVoiceSession(sessionId: string): Promise<VoiceSession | undefined>;
   updateVoiceSession(sessionId: string, updates: Partial<VoiceSession>): Promise<VoiceSession | undefined>;
+  
+  // Chat Session Management
+  createChatSession(session: InsertChatSession): Promise<ChatSession>;
+  getChatSessions(limit?: number): Promise<ChatSession[]>;
+  getChatSession(id: number): Promise<ChatSession | undefined>;
+  updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession | undefined>;
+  deleteChatSession(id: number): Promise<boolean>;
+  setActiveSession(id: number): Promise<void>;
+  
+  // Session Messages
+  createSessionMessage(message: InsertSessionMessage): Promise<SessionMessage>;
+  getSessionMessages(sessionId: number, limit?: number): Promise<SessionMessage[]>;
+  updateSessionMessage(id: number, updates: Partial<SessionMessage>): Promise<SessionMessage | undefined>;
+  deleteSessionMessage(id: number): Promise<boolean>;
+  
   healthCheck(): Promise<boolean>;
 }
 
@@ -123,6 +144,117 @@ export class DatabaseStorage implements IStorage {
       .where(eq(voiceSessions.sessionId, sessionId))
       .returning();
     return updated || undefined;
+  }
+
+  // Chat Session Management
+  async createChatSession(session: InsertChatSession): Promise<ChatSession> {
+    // Set all existing sessions to inactive first
+    await db.update(chatSessions).set({ isActive: false });
+    
+    const [chatSession] = await db
+      .insert(chatSessions)
+      .values({
+        ...session,
+        isActive: true,
+        messageCount: 0
+      })
+      .returning();
+    return chatSession;
+  }
+
+  async getChatSessions(limit: number = 50): Promise<ChatSession[]> {
+    return await db
+      .select()
+      .from(chatSessions)
+      .orderBy(desc(chatSessions.updatedAt))
+      .limit(limit);
+  }
+
+  async getChatSession(id: number): Promise<ChatSession | undefined> {
+    const [session] = await db.select().from(chatSessions).where(eq(chatSessions.id, id));
+    return session || undefined;
+  }
+
+  async updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession | undefined> {
+    const [updated] = await db
+      .update(chatSessions)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(chatSessions.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteChatSession(id: number): Promise<boolean> {
+    try {
+      await db.delete(chatSessions).where(eq(chatSessions.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting chat session:', error);
+      return false;
+    }
+  }
+
+  async setActiveSession(id: number): Promise<void> {
+    // Set all sessions to inactive
+    await db.update(chatSessions).set({ isActive: false });
+    // Set the specified session to active
+    await db.update(chatSessions).set({ isActive: true }).where(eq(chatSessions.id, id));
+  }
+
+  // Session Messages
+  async createSessionMessage(message: InsertSessionMessage): Promise<SessionMessage> {
+    const [sessionMessage] = await db
+      .insert(sessionMessages)
+      .values(message)
+      .returning();
+
+    // Update the parent session with message count and last message
+    const messageCount = await db
+      .select()
+      .from(sessionMessages)
+      .where(eq(sessionMessages.sessionId, message.sessionId));
+    
+    await db
+      .update(chatSessions)
+      .set({
+        messageCount: messageCount.length + 1,
+        lastMessage: message.content.substring(0, 100),
+        updatedAt: new Date()
+      })
+      .where(eq(chatSessions.id, message.sessionId));
+
+    return sessionMessage;
+  }
+
+  async getSessionMessages(sessionId: number, limit: number = 100): Promise<SessionMessage[]> {
+    return await db
+      .select()
+      .from(sessionMessages)
+      .where(eq(sessionMessages.sessionId, sessionId))
+      .orderBy(sessionMessages.createdAt)
+      .limit(limit);
+  }
+
+  async updateSessionMessage(id: number, updates: Partial<SessionMessage>): Promise<SessionMessage | undefined> {
+    const [updated] = await db
+      .update(sessionMessages)
+      .set(updates)
+      .where(eq(sessionMessages.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteSessionMessage(id: number): Promise<boolean> {
+    try {
+      await db.delete(sessionMessages).where(eq(sessionMessages.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error deleting session message:', error);
+      return false;
+    }
   }
 
   async healthCheck(): Promise<boolean> {

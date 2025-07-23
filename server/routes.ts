@@ -277,6 +277,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat Session Management API Routes
+  
+  // Create new chat session
+  app.post("/api/sessions", async (req, res) => {
+    try {
+      const { title } = req.body;
+      
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ message: "Session title is required" });
+      }
+
+      const session = await storage.createChatSession({ title });
+      res.json(session);
+    } catch (error) {
+      console.error("Create session error:", error);
+      res.status(500).json({ message: "Failed to create chat session" });
+    }
+  });
+
+  // Get all chat sessions
+  app.get("/api/sessions", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const sessions = await storage.getChatSessions(limit);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Get sessions error:", error);
+      res.status(500).json({ message: "Failed to get chat sessions" });
+    }
+  });
+
+  // Get specific chat session
+  app.get("/api/sessions/:id", async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const session = await storage.getChatSession(sessionId);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error("Get session error:", error);
+      res.status(500).json({ message: "Failed to get chat session" });
+    }
+  });
+
+  // Update chat session
+  app.put("/api/sessions/:id", async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const updates = req.body;
+
+      const session = await storage.updateChatSession(sessionId, updates);
+      
+      if (!session) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      res.json(session);
+    } catch (error) {
+      console.error("Update session error:", error);
+      res.status(500).json({ message: "Failed to update chat session" });
+    }
+  });
+
+  // Delete chat session
+  app.delete("/api/sessions/:id", async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const deleted = await storage.deleteChatSession(sessionId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Session not found" });
+      }
+
+      res.json({ message: "Session deleted successfully" });
+    } catch (error) {
+      console.error("Delete session error:", error);
+      res.status(500).json({ message: "Failed to delete chat session" });
+    }
+  });
+
+  // Set active session
+  app.put("/api/sessions/:id/activate", async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      await storage.setActiveSession(sessionId);
+      res.json({ message: "Session activated successfully" });
+    } catch (error) {
+      console.error("Activate session error:", error);
+      res.status(500).json({ message: "Failed to activate session" });
+    }
+  });
+
+  // Session Messages API
+
+  // Get messages for a session
+  app.get("/api/sessions/:id/messages", async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const messages = await storage.getSessionMessages(sessionId, limit);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get session messages error:", error);
+      res.status(500).json({ message: "Failed to get session messages" });
+    }
+  });
+
+  // Add message to session
+  app.post("/api/sessions/:id/messages", async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.id);
+      const { content, type, messageType, audioUrl, metadata } = req.body;
+      
+      if (!content || !type) {
+        return res.status(400).json({ message: "Content and type are required" });
+      }
+
+      const message = await storage.createSessionMessage({
+        sessionId,
+        content,
+        type,
+        messageType: messageType || 'text',
+        audioUrl,
+        metadata
+      });
+
+      res.json(message);
+    } catch (error) {
+      console.error("Create session message error:", error);
+      res.status(500).json({ message: "Failed to create session message" });
+    }
+  });
+
   // Background processing function
   async function processAnalysis(id: number) {
     try {
