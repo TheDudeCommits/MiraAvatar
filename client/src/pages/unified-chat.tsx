@@ -537,15 +537,17 @@ export default function UnifiedChat() {
 
     const userContent = inputText.trim();
     setInputText('');
-    setIsProcessing(true);
 
     try {
-      // Save user message
+      // Save user message instantly - this will show up immediately
       await createMessageMutation.mutateAsync({
         content: userContent,
         type: 'user',
         messageType: 'text'
       });
+
+      // Start processing AI response in the background
+      setIsProcessing(true);
 
       // Get AI response
       const response = await fetch('/api/chat', {
@@ -563,7 +565,7 @@ export default function UnifiedChat() {
 
       const data = await response.json();
 
-      // Save assistant message
+      // Save assistant message - this will appear after AI responds
       await createMessageMutation.mutateAsync({
         content: data.response,
         type: 'assistant',
@@ -1212,11 +1214,11 @@ export default function UnifiedChat() {
                 }}
                 placeholder="Enter neural data transmission..."
                 className="titillium-web-regular flex-1 glass-enhanced border-gray-600/30 text-gray-100 placeholder:text-gray-400/70"
-                disabled={isProcessing}
+                disabled={false}
               />
               <Button
                 onClick={sendTextMessage}
-                disabled={!inputText.trim() || isProcessing}
+                disabled={!inputText.trim()}
                 variant="ghost"
                 className="titillium-web-semibold sleek-button px-4"
               >
