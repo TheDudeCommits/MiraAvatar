@@ -538,15 +538,24 @@ export default function UnifiedChat() {
     const userContent = inputText.trim();
     setInputText('');
 
+    // Add user message to local state immediately for instant display
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: userContent,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+
     try {
-      // Save user message instantly - this will show up immediately
-      await createMessageMutation.mutateAsync({
+      // Save user message to database (async, doesn't block UI)
+      createMessageMutation.mutate({
         content: userContent,
         type: 'user',
         messageType: 'text'
       });
 
-      // Start processing AI response in the background
+      // Start processing AI response
       setIsProcessing(true);
 
       // Get AI response
@@ -565,8 +574,17 @@ export default function UnifiedChat() {
 
       const data = await response.json();
 
-      // Save assistant message - this will appear after AI responds
-      await createMessageMutation.mutateAsync({
+      // Add AI response to local state immediately
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: data.response,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // Save assistant message to database (async, doesn't block UI)
+      createMessageMutation.mutate({
         content: data.response,
         type: 'assistant',
         messageType: 'text'
@@ -1148,13 +1166,20 @@ export default function UnifiedChat() {
                       </div>
                     </div>
                   ))}
-                  {isProcessing && (
-                    <div className="flex justify-start">
-                      <div className="glass-enhanced border border-border/30 rounded-lg p-4">
-                        <div className="flex items-center space-x-2">
-                          <Bot className="w-5 h-5 text-primary" />
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-muted-foreground">Processing...</span>
+                  {isProcessing && interactionMode === 'text' && (
+                    <div className="flex items-start gap-3 flex-row opacity-80">
+                      {/* Mira Avatar */}
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800 border border-primary/30 shadow-lg">
+                        <Bot className="w-6 h-6 text-primary animate-pulse" />
+                      </div>
+                      
+                      {/* Processing message */}
+                      <div className="flex-1 max-w-[75%] min-w-0 text-left">
+                        <div className="message-bubble group relative titillium-web-regular inline-block p-3 rounded-2xl shadow-xl backdrop-blur-xl border bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600/20 text-white rounded-bl-md">
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                            <span className="text-sm text-gray-300">Mira is analyzing...</span>
+                          </div>
                         </div>
                       </div>
                     </div>
