@@ -7,6 +7,7 @@ import { setupAuthRoutes, requireAuth, optionalAuth } from "./auth";
 import { pdfParser } from "./services/pdf-parser";
 import { openaiService } from "./services/openai";
 import { elevenLabsService } from "./services/elevenlabs";
+import { simpleAiDetectorService } from "./services/simpleAiDetector";
 import { insertCvAnalysisSchema, insertChatSessionSchema, insertSessionMessageSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -197,6 +198,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Chat history error:", error);
       res.status(500).json({ message: "Failed to get chat history" });
+    }
+  });
+
+  // AI Text Detection endpoint
+  app.post("/api/ai-detect", async (req, res) => {
+    try {
+      const { text } = req.body;
+      
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ message: "Text is required for AI detection" });
+      }
+
+      if (text.length < 10) {
+        return res.status(400).json({ message: "Text too short for reliable detection (minimum 10 characters)" });
+      }
+
+      console.log(`AI Detection request for text (${text.length} chars):`, text.substring(0, 100) + '...');
+
+      // Run AI detection
+      const result = await simpleAiDetectorService.detectAIText(text);
+      
+      console.log('AI Detection result:', result);
+
+      res.json({
+        probability: result.probability,
+        label: result.label,
+        confidence: result.confidence,
+        analysis: result.miraAnalysis,
+        textLength: text.length
+      });
+
+    } catch (error) {
+      console.error("AI Detection error:", error);
+      res.status(500).json({ message: "Failed to analyze text for AI detection" });
     }
   });
 
