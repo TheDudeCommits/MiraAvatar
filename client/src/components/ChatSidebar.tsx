@@ -20,6 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { apiRequest } from "@/lib/queryClient";
+import { UserProfile } from "./UserProfile";
 import type { ChatSession } from "@shared/schema";
 
 interface ChatSidebarProps {
@@ -264,6 +265,9 @@ export function ChatSidebar({
           )}
         </div>
       </ScrollArea>
+
+      {/* User Profile at bottom */}
+      <UserProfile />
     </div>
   );
 }

@@ -3,10 +3,12 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
 import { storage } from "./storage";
+import { setupAuthRoutes, requireAuth, optionalAuth } from "./auth";
 import { pdfParser } from "./services/pdf-parser";
 import { openaiService } from "./services/openai";
 import { elevenLabsService } from "./services/elevenlabs";
-import { insertCvAnalysisSchema } from "@shared/schema";
+import { insertCvAnalysisSchema, insertChatSessionSchema, insertSessionMessageSchema } from "@shared/schema";
+import { z } from "zod";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -34,6 +36,8 @@ const audioUpload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication first
+  setupAuthRoutes(app);
   // Enhanced health check endpoint
   app.get("/api/health", async (req, res) => {
     try {
@@ -296,11 +300,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all chat sessions
-  app.get("/api/sessions", async (req, res) => {
+  // Get all chat sessions (optional auth - shows user's sessions if authenticated)
+  app.get("/api/sessions", optionalAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
-      const sessions = await storage.getChatSessions(limit);
+      const userId = req.isAuthenticated() ? (req.user as any)?.id : null;
+      const sessions = await storage.getChatSessions(limit, userId);
       res.json(sessions);
     } catch (error) {
       console.error("Get sessions error:", error);

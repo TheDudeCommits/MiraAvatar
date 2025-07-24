@@ -4,8 +4,31 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").unique(),
+  username: text("username"),
+  password: text("password"), // Optional for social logins
+  profileImage: text("profile_image"),
+  displayName: text("display_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const userAccounts = pgTable("user_accounts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // google, twitter, wallet
+  providerAccountId: text("provider_account_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
+  walletAddress: text("wallet_address"), // For wallet connect
+  metadata: jsonb("metadata").$type<{
+    twitterHandle?: string;
+    googleProfile?: any;
+    walletType?: string;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const cvAnalyses = pgTable("cv_analyses", {
@@ -43,6 +66,7 @@ export const voiceSessions = pgTable("voice_sessions", {
 
 export const chatSessions = pgTable("chat_sessions", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   isActive: boolean("is_active").notNull().default(false),
   messageCount: integer("message_count").notNull().default(0),
@@ -67,8 +91,22 @@ export const sessionMessages = pgTable("session_messages", {
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
+  email: true,
   username: true,
   password: true,
+  profileImage: true,
+  displayName: true,
+});
+
+export const insertUserAccountSchema = createInsertSchema(userAccounts).pick({
+  userId: true,
+  provider: true,
+  providerAccountId: true,
+  accessToken: true,
+  refreshToken: true,
+  expiresAt: true,
+  walletAddress: true,
+  metadata: true,
 });
 
 export const insertCvAnalysisSchema = createInsertSchema(cvAnalyses).pick({
@@ -102,6 +140,8 @@ export const insertSessionMessageSchema = createInsertSchema(sessionMessages).pi
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UserAccount = typeof userAccounts.$inferSelect;
+export type InsertUserAccount = z.infer<typeof insertUserAccountSchema>;
 export type CvAnalysis = typeof cvAnalyses.$inferSelect;
 export type InsertCvAnalysis = z.infer<typeof insertCvAnalysisSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;

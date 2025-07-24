@@ -1,12 +1,15 @@
 import { 
   users, 
+  userAccounts,
   cvAnalyses, 
   chatMessages, 
   voiceSessions,
   chatSessions,
   sessionMessages,
   type User, 
-  type InsertUser, 
+  type InsertUser,
+  type UserAccount,
+  type InsertUserAccount,
   type CvAnalysis, 
   type InsertCvAnalysis,
   type ChatMessage,
@@ -25,6 +28,11 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  
+  // Authentication methods
+  findUserByAccount(provider: string, providerAccountId: string): Promise<User | undefined>;
+  createUserAccount(account: InsertUserAccount): Promise<UserAccount>;
+  getUserAccounts(userId: number): Promise<UserAccount[]>;
   createCvAnalysis(analysis: InsertCvAnalysis): Promise<CvAnalysis>;
   getCvAnalysis(id: number): Promise<CvAnalysis | undefined>;
   updateCvAnalysis(id: number, updates: Partial<CvAnalysis>): Promise<CvAnalysis | undefined>;
@@ -37,7 +45,7 @@ export interface IStorage {
   
   // Chat Session Management
   createChatSession(session: InsertChatSession): Promise<ChatSession>;
-  getChatSessions(limit?: number): Promise<ChatSession[]>;
+  getChatSessions(limit?: number, userId?: number | null): Promise<ChatSession[]>;
   getChatSession(id: number): Promise<ChatSession | undefined>;
   updateChatSession(id: number, updates: Partial<ChatSession>): Promise<ChatSession | undefined>;
   deleteChatSession(id: number): Promise<boolean>;
@@ -69,6 +77,37 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  // Authentication methods
+  async findUserByAccount(provider: string, providerAccountId: string): Promise<User | undefined> {
+    const result = await db
+      .select({ user: users })
+      .from(userAccounts)
+      .innerJoin(users, eq(userAccounts.userId, users.id))
+      .where(and(
+        eq(userAccounts.provider, provider),
+        eq(userAccounts.providerAccountId, providerAccountId)
+      ))
+      .limit(1);
+
+    return result[0]?.user;
+  }
+
+  async createUserAccount(account: InsertUserAccount): Promise<UserAccount> {
+    const [userAccount] = await db
+      .insert(userAccounts)
+      .values(account)
+      .returning();
+    
+    return userAccount;
+  }
+
+  async getUserAccounts(userId: number): Promise<UserAccount[]> {
+    return await db
+      .select()
+      .from(userAccounts)
+      .where(eq(userAccounts.userId, userId));
   }
 
   async createCvAnalysis(analysis: InsertCvAnalysis): Promise<CvAnalysis> {
@@ -162,12 +201,22 @@ export class DatabaseStorage implements IStorage {
     return chatSession;
   }
 
-  async getChatSessions(limit: number = 50): Promise<ChatSession[]> {
-    return await db
+  async getChatSessions(limit: number = 50, userId?: number | null): Promise<ChatSession[]> {
+    const query = db
       .select()
       .from(chatSessions)
       .orderBy(desc(chatSessions.updatedAt))
       .limit(limit);
+    
+    // If userId is provided, filter by user's sessions
+    if (userId) {
+      query.where(eq(chatSessions.userId, userId));
+    } else {
+      // If no userId, show sessions without a user (anonymous sessions)
+      query.where(eq(chatSessions.userId, null));
+    }
+    
+    return await query;
   }
 
   async getChatSession(id: number): Promise<ChatSession | undefined> {
