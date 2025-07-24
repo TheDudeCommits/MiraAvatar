@@ -67,18 +67,19 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
       });
 
       // Send to backend for verification
-      const response = await apiRequest('/auth/wallet', 'POST', {
+      const response = await apiRequest('POST', '/auth/wallet', {
         message,
         signature,
         address,
       });
+      const result = await response.json();
 
       toast({
         title: "Wallet Connected",
         description: "Successfully authenticated with your wallet",
       });
 
-      onAuthSuccess(response.user);
+      onAuthSuccess(result.user);
       onClose();
     } catch (error: any) {
       console.error('Wallet connection error:', error);

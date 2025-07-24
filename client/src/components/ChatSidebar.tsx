@@ -61,7 +61,7 @@ export function ChatSidebar({
   // Delete session mutation
   const deleteSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      return await apiRequest(`/api/sessions/${sessionId}`, "DELETE");
+      return await apiRequest("DELETE", `/api/sessions/${sessionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });
@@ -71,7 +71,7 @@ export function ChatSidebar({
   // Update session title mutation
   const updateSessionMutation = useMutation({
     mutationFn: async ({ sessionId, title }: { sessionId: number; title: string }) => {
-      return await apiRequest(`/api/sessions/${sessionId}`, "PUT", { title });
+      return await apiRequest("PUT", `/api/sessions/${sessionId}`, { title });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });

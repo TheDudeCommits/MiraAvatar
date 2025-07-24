@@ -50,7 +50,7 @@ export function UserProfile() {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest('/auth/logout', 'POST');
+      await apiRequest('POST', '/auth/logout');
     },
     onSuccess: () => {
       queryClient.clear();

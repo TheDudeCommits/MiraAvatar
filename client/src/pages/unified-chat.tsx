@@ -80,23 +80,26 @@ export default function UnifiedChat() {
     }) => {
       if (!currentSessionId) {
         // Create new session first
-        const newSession = await apiRequest("/api/sessions", "POST", { 
+        const response = await apiRequest("POST", "/api/sessions", { 
           title: content.substring(0, 50) 
         });
+        const newSession = await response.json();
         setCurrentSessionId(newSession.id);
-        return await apiRequest(`/api/sessions/${newSession.id}/messages`, "POST", {
+        const messageResponse = await apiRequest("POST", `/api/sessions/${newSession.id}/messages`, {
           content,
           type,
           messageType: messageType || 'text',
           audioUrl
         });
+        return await messageResponse.json();
       }
-      return await apiRequest(`/api/sessions/${currentSessionId}/messages`, "POST", {
+      const response = await apiRequest("POST", `/api/sessions/${currentSessionId}/messages`, {
         content,
         type,
         messageType: messageType || 'text',
         audioUrl
       });
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions", currentSessionId, "messages"] });
