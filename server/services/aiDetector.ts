@@ -15,43 +15,32 @@ export interface AIDetectionResult {
 
 export class AIDetectorService {
   async detectAIText(inputText: string): Promise<AIDetectionResult> {
+    console.log('=== AI Detection Starting ===');
+    console.log('Analyzing text for AI detection:', inputText.substring(0, 100) + '...');
+    
+    // Run text analysis for AI detection  
+    const detectionResult = await this.runPythonDetection(inputText);
+    console.log('Detection result from Python:', detectionResult);
+    
+    // Generate simple Mira analysis
+    let miraAnalysis: string;
     try {
-      console.log('Analyzing text for AI detection:', inputText.substring(0, 100) + '...');
-      
-      // Run text analysis for AI detection
-      const detectionResult = await this.runPythonDetection(inputText);
-      console.log('Detection result:', detectionResult);
-      
-      // Generate simple Mira analysis
-      let miraAnalysis: string;
-      try {
-        miraAnalysis = await this.generateMiraAnalysis(
-          inputText, 
-          detectionResult.probability, 
-          detectionResult.label
-        );
-      } catch (error) {
-        console.error('Mira analysis failed, using fallback:', error);
-        miraAnalysis = `Based on my analysis, this text has a ${(detectionResult.probability * 100).toFixed(1)}% probability of being AI-generated. The patterns suggest it's ${detectionResult.label.toLowerCase()}. The writing style and structure give it away!`;
-      }
-
-      return {
-        probability: detectionResult.probability,
-        label: detectionResult.label,
-        confidence: this.calculateConfidence(detectionResult.probability),
-        miraAnalysis
-      };
-
+      miraAnalysis = await this.generateMiraAnalysis(
+        inputText, 
+        detectionResult.probability, 
+        detectionResult.label
+      );
     } catch (error) {
-      console.error('AI Detection error:', error);
-      // Return a fallback result instead of throwing
-      return {
-        probability: 0.5,
-        label: 'Human Written',
-        confidence: 0.6,
-        miraAnalysis: 'Sorry, I encountered an issue analyzing this text. Try with a different sample!'
-      };
+      console.error('Mira analysis failed, using fallback:', error);
+      miraAnalysis = `Based on my analysis, this text has a ${(detectionResult.probability * 100).toFixed(1)}% probability of being AI-generated. The patterns suggest it's ${detectionResult.label.toLowerCase()}. The writing style and structure give it away!`;
     }
+
+    return {
+      probability: detectionResult.probability,
+      label: detectionResult.label,
+      confidence: this.calculateConfidence(detectionResult.probability),
+      miraAnalysis
+    };
   }
 
   private needsTextExtraction(text: string): boolean {
@@ -90,7 +79,13 @@ export class AIDetectorService {
   private async runPythonDetection(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written'}> {
     return new Promise((resolve, reject) => {
       const pythonScript = path.join(__dirname, 'ai-detector.py');
-      const pythonProcess = spawn('python3', [pythonScript]);
+      console.log('Python script path:', pythonScript);
+      console.log('Input text length:', text.length);
+      
+      const pythonProcess = spawn('python3', [pythonScript], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: path.dirname(pythonScript)
+      });
 
       let output = '';
       let errorOutput = '';
@@ -108,8 +103,12 @@ export class AIDetectorService {
       });
 
       pythonProcess.on('close', (code) => {
+        console.log('Python process closed with code:', code);
+        console.log('Python stdout:', output);
+        console.log('Python stderr:', errorOutput);
+        
         if (code !== 0) {
-          console.error('Python script error:', errorOutput);
+          console.error('Python script error (non-zero exit):', errorOutput);
           // Fallback to sophisticated text analysis if Python fails
           this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
           return;
@@ -117,6 +116,8 @@ export class AIDetectorService {
 
         try {
           const result = JSON.parse(output.trim());
+          console.log('Parsed Python result:', result);
+          
           if (result.error && !result.fallback) {
             throw new Error(result.error);
           }
@@ -125,7 +126,7 @@ export class AIDetectorService {
             label: result.label as 'AI Generated' | 'Human Written'
           });
         } catch (parseError) {
-          console.error('Failed to parse Python output:', parseError);
+          console.error('Failed to parse Python output:', parseError, 'Raw output:', output);
           // Fallback to text analysis
           this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
         }
