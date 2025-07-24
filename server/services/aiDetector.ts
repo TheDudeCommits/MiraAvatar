@@ -88,13 +88,55 @@ export class AIDetectorService {
   }
 
   private async runPythonDetection(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written'}> {
-    // For now, use a sophisticated text analysis algorithm instead of Python ML
-    // This provides realistic detection results based on text characteristics
-    
-    console.log('Running text analysis for AI detection...');
-    
-    const analysis = await this.analyzeTextCharacteristics(text);
-    return analysis;
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, 'ai-detector.py');
+      const pythonProcess = spawn('python3', [pythonScript]);
+
+      let output = '';
+      let errorOutput = '';
+
+      // Send text to Python script via stdin
+      pythonProcess.stdin.write(text);
+      pythonProcess.stdin.end();
+
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          console.error('Python script error:', errorOutput);
+          // Fallback to sophisticated text analysis if Python fails
+          this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
+          return;
+        }
+
+        try {
+          const result = JSON.parse(output.trim());
+          if (result.error && !result.fallback) {
+            throw new Error(result.error);
+          }
+          resolve({
+            probability: result.probability,
+            label: result.label as 'AI Generated' | 'Human Written'
+          });
+        } catch (parseError) {
+          console.error('Failed to parse Python output:', parseError);
+          // Fallback to text analysis
+          this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
+        }
+      });
+
+      pythonProcess.on('error', (error) => {
+        console.error('Failed to start Python process:', error);
+        // Fallback to text analysis
+        this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
+      });
+    });
   }
 
   private async analyzeTextCharacteristics(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written'}> {
