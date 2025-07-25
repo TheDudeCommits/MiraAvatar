@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -34,17 +34,45 @@ export class MLAIDetectorService {
 
   private async callPythonMLModel(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
     return new Promise((resolve, reject) => {
-      const pythonScript = path.join(__dirname, 'ai-detector.py');
+      // Use optimized daemon version for faster loading
+      const pythonScript = path.join(__dirname, 'ai-detector-daemon.py');
       console.log('Calling Python script:', pythonScript);
       
-      // Use absolute python path for production reliability
-      const pythonPath = '/home/runner/workspace/.pythonlibs/bin/python3';
+      // Try multiple Python paths for production reliability
+      const possiblePythonPaths = [
+        '/home/runner/workspace/.pythonlibs/bin/python3',
+        '/usr/bin/python3',
+        '/usr/local/bin/python3',
+        'python3'
+      ];
+      
+      let pythonPath = 'python3'; // Default fallback
+      
+      // Check which python path exists
+      for (const testPath of possiblePythonPaths) {
+        try {
+          execSync(`${testPath} --version`, { timeout: 5000, stdio: 'ignore' });
+          pythonPath = testPath;
+          break;
+        } catch (error) {
+          // Continue to next path
+        }
+      }
+      
       console.log('Using Python path:', pythonPath);
+      
+      // Set environment variables for Python to find packages
+      const env = {
+        ...process.env,
+        PYTHONPATH: '/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages',
+        PATH: '/home/runner/workspace/.pythonlibs/bin:' + process.env.PATH
+      };
       
       const pythonProcess = spawn(pythonPath, [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
         cwd: path.dirname(pythonScript),
-        timeout: 30000 // 30 second timeout
+        timeout: 30000, // 30 second timeout for authentic ML model
+        env: env
       });
 
       let output = '';
@@ -77,7 +105,7 @@ export class MLAIDetectorService {
               label: result.label as 'AI Generated' | 'Human Written',
               confidence: result.confidence
             });
-          } catch (parseError) {
+          } catch (parseError: any) {
             console.error('JSON parse error:', parseError);
             console.error('Raw output:', output);
             reject(new Error(`Failed to parse Python output: ${parseError.message}`));
