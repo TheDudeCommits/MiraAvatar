@@ -17,113 +17,30 @@ export class MLAIDetectorService {
     console.log('=== ML AI Detection Starting ===');
     console.log('Input text preview:', inputText.substring(0, 100) + '...');
     
-    try {
-      // Call Python ML model
-      const mlResult = await this.callPythonMLModel(inputText);
-      console.log('ML Model result:', mlResult);
-      
-      // Generate Mira's cyberpunk analysis
-      const miraAnalysis = this.generateMiraAnalysis(inputText, mlResult.probability, mlResult.label);
-      
-      return {
-        probability: mlResult.probability,
-        label: mlResult.label,
-        confidence: mlResult.confidence,
-        miraAnalysis
-      };
-    } catch (error) {
-      console.error('ML Model failed, using fallback algorithm:', error);
-      // Fallback to rule-based detection
-      return this.fallbackDetection(inputText);
-    }
-  }
-
-  private fallbackDetection(text: string): AIDetectionResult {
-    // Simple rule-based detection when ML model is unavailable
-    const aiIndicators = [
-      'comprehensive analysis', 'furthermore', 'it is important to note',
-      'extensive research', 'considerable implications', 'significant patterns',
-      'various aspects', 'in conclusion', 'substantial evidence'
-    ];
+    // Call Python ML model
+    const mlResult = await this.callPythonMLModel(inputText);
+    console.log('ML Model result:', mlResult);
     
-    const matches = aiIndicators.filter(indicator => 
-      text.toLowerCase().includes(indicator.toLowerCase())
-    ).length;
-    
-    const probability = Math.min(0.9, 0.3 + (matches * 0.15));
-    const confidence = Math.min(0.85, 0.4 + (matches * 0.1));
-    
-    const miraAnalysis = `Yo! My ML model is offline right now, but I ran your text through my backup detection algorithms. Getting ${(probability * 100).toFixed(1)}% probability this is AI-generated based on linguistic pattern analysis. Not as precise as my neural networks, but still pretty solid!`;
+    // Generate Mira's cyberpunk analysis
+    const miraAnalysis = this.generateMiraAnalysis(inputText, mlResult.probability, mlResult.label);
     
     return {
-      probability,
-      label: probability > 0.5 ? 'AI Generated' : 'Human Written',
-      confidence,
+      probability: mlResult.probability,
+      label: mlResult.label,
+      confidence: mlResult.confidence,
       miraAnalysis
     };
   }
 
   private async callPythonMLModel(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
     return new Promise((resolve, reject) => {
-      // Check multiple possible locations for the Python script
-      const possiblePaths = [
-        path.join(__dirname, 'ai-detector.py'),
-        path.join(process.cwd(), 'server', 'services', 'ai-detector.py'),
-        path.join(process.cwd(), 'dist', 'server', 'services', 'ai-detector.py'),
-        path.join(process.cwd(), 'dist', 'ai-detector.py'),
-        './server/services/ai-detector.py',
-        './ai-detector.py'
-      ];
+      const pythonScript = path.join(__dirname, 'ai-detector.py');
+      console.log('Calling Python script:', pythonScript);
       
-      let pythonScript = '';
-      for (const testPath of possiblePaths) {
-        try {
-          const fs = require('fs');
-          if (fs.existsSync(testPath)) {
-            pythonScript = testPath;
-            break;
-          }
-        } catch (e) {
-          // Continue to next path
-        }
-      }
-      
-      if (!pythonScript) {
-        console.error('Python script not found in any of these locations:', possiblePaths);
-        console.log('Environment:', {
-          NODE_ENV: process.env.NODE_ENV,
-          cwd: process.cwd(),
-          __dirname,
-          __filename
-        });
-        reject(new Error('Python AI detection script not found in production deployment'));
-        return;
-      }
-      
-      console.log('Found Python script at:', pythonScript);
-      
-      // Try different Python executables
-      const pythonExecutables = ['python3', 'python', '/usr/bin/python3', '/usr/bin/python'];
-      let pythonProcess;
-      
-      for (const pythonExe of pythonExecutables) {
-        try {
-          pythonProcess = spawn(pythonExe, [pythonScript], {
-            stdio: ['pipe', 'pipe', 'pipe'],
-            cwd: path.dirname(pythonScript)
-          });
-          console.log(`Successfully spawned Python process with: ${pythonExe}`);
-          break;
-        } catch (error) {
-          console.log(`Failed to spawn with ${pythonExe}:`, error instanceof Error ? error.message : String(error));
-          continue;
-        }
-      }
-      
-      if (!pythonProcess) {
-        reject(new Error('Failed to start Python process with any available executable'));
-        return;
-      }
+      const pythonProcess = spawn('python3', [pythonScript], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: path.dirname(pythonScript)
+      });
 
       let output = '';
       let errorOutput = '';
@@ -142,11 +59,8 @@ export class MLAIDetectorService {
 
       pythonProcess.on('close', (code) => {
         console.log('Python process closed with code:', code);
-        if (errorOutput) {
-          console.log('Python stderr:', errorOutput);
-        }
         
-        if (code === 0 && output.trim()) {
+        if (code === 0) {
           try {
             const result = JSON.parse(output.trim());
             console.log('Parsed result:', result);
@@ -158,13 +72,11 @@ export class MLAIDetectorService {
           } catch (parseError) {
             console.error('JSON parse error:', parseError);
             console.error('Raw output:', output);
-            reject(new Error('Failed to parse Python output: ' + parseError));
+            reject(new Error('Failed to parse Python output'));
           }
         } else {
-          console.error('Python script failed with code:', code);
-          console.error('Error output:', errorOutput);
-          console.error('Standard output:', output);
-          reject(new Error(`Python script execution failed with code ${code}: ${errorOutput}`));
+          console.error('Python script failed:', errorOutput);
+          reject(new Error('Python script execution failed'));
         }
       });
 
