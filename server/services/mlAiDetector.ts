@@ -38,9 +38,10 @@ export class MLAIDetectorService {
       const pythonScript = path.join(__dirname, 'ai-detector-daemon.py');
       console.log('Calling Python script:', pythonScript);
       
-      // Try multiple Python paths for production reliability
+      // Enhanced Python path detection for production
       const possiblePythonPaths = [
-        '/home/runner/workspace/.pythonlibs/bin/python3',
+        process.env.HOME + '/.local/bin/python3',
+        '/home/runner/.local/bin/python3',
         '/usr/bin/python3',
         '/usr/local/bin/python3',
         'python3'
@@ -48,24 +49,40 @@ export class MLAIDetectorService {
       
       let pythonPath = 'python3'; // Default fallback
       
-      // Check which python path exists
+      // Check which python path exists and has required packages
       for (const testPath of possiblePythonPaths) {
         try {
-          execSync(`${testPath} --version`, { timeout: 5000, stdio: 'ignore' });
+          execSync(`${testPath} -c "import torch, transformers; print('OK')"`, { 
+            timeout: 10000, 
+            stdio: 'ignore' 
+          });
           pythonPath = testPath;
+          console.log('✅ Found working Python with required packages:', pythonPath);
           break;
         } catch (error) {
+          console.log('❌ Python path failed:', testPath);
           // Continue to next path
         }
       }
       
       console.log('Using Python path:', pythonPath);
       
-      // Set environment variables for Python to find packages
+      // Enhanced environment variables for Python to find packages
       const env = {
         ...process.env,
-        PYTHONPATH: '/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages',
-        PATH: '/home/runner/workspace/.pythonlibs/bin:' + process.env.PATH
+        PYTHONPATH: [
+          process.env.HOME + '/.local/lib/python3.11/site-packages',
+          '/home/runner/.local/lib/python3.11/site-packages',
+          '/usr/local/lib/python3.11/site-packages'
+        ].join(':'),
+        PATH: [
+          process.env.HOME + '/.local/bin',
+          '/home/runner/.local/bin',
+          process.env.PATH
+        ].join(':'),
+        TOKENIZERS_PARALLELISM: 'false',
+        TRANSFORMERS_CACHE: process.env.HOME + '/.cache/huggingface/transformers',
+        HF_HOME: process.env.HOME + '/.cache/huggingface'
       };
       
       const pythonProcess = spawn(pythonPath, [pythonScript], {

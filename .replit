@@ -39,5 +39,14 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Deploy Production"
+author = 43849304
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash start-production.sh"
+
 [agent]
 integrations = ["javascript_openai==1.0.0", "javascript_database==1.0.0", "javascript_log_in_with_replit==1.0.0"]
