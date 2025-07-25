@@ -80,13 +80,23 @@ export class MLAIDetectorService {
   }
 
   private async runPythonScript(pythonScript: string, text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
-    // First try the adapted version of your model, then fallback to lightweight version
+    // First try the full ML model, then fallback to lightweight version
+    try {
+      return await this.runFullMLModel(pythonScript, text);
+    } catch (error) {
+      console.log('Full ML model failed, using lightweight AI detector...');
+      return await this.runLightweightDetector(text);
+    }
+  }
+
+  private async runFullMLModel(pythonScript: string, text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
+    // Try the adapted version of your model first
     const adaptedScript = path.join(__dirname, 'ai-detector-adapted.py');
     try {
       return await this.executeScript(adaptedScript, text, true);
     } catch (error) {
-      console.log('Adapted model failed, using lightweight AI detector...');
-      return await this.runLightweightDetector(text);
+      console.log('Adapted model failed, trying original model...');
+      return await this.executeScript(pythonScript, text, false);
     }
   }
 
