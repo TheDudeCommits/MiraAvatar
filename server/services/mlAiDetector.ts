@@ -71,9 +71,9 @@ export class MLAIDetectorService {
       const env = {
         ...process.env,
         PYTHONPATH: [
-          process.env.HOME + '/.local/lib/python3.11/site-packages',
-          '/home/runner/.local/lib/python3.11/site-packages',
-          '/usr/local/lib/python3.11/site-packages'
+          process.env.HOME + '/.local/lib/python3.12/site-packages',
+          '/home/runner/.local/lib/python3.12/site-packages',
+          '/usr/local/lib/python3.12/site-packages'
         ].join(':'),
         PATH: [
           process.env.HOME + '/.local/bin',
