@@ -1,30 +1,29 @@
 #!/bin/bash
 
-# Production startup script for deployment
-echo "🚀 Starting CV Avatar Chatbot in production mode..."
+# Production startup script for AskMira
+echo "🚀 Starting AskMira production build..."
 
-# Set environment variables for production
-export NODE_ENV=production
-export PORT=${PORT:-5000}
+# Ensure Python dependencies are available
+echo "🔍 Checking Python environment..."
+python3 --version || echo "⚠️ Python3 not found"
 
-# Verify environment variables are set
-if [ -z "$DATABASE_URL" ]; then
-    echo "❌ Error: DATABASE_URL environment variable is required"
-    exit 1
+# Check if required Python packages are available
+python3 -c "import torch; print('✅ PyTorch available')" 2>/dev/null || echo "⚠️ PyTorch not available"
+python3 -c "import transformers; print('✅ Transformers available')" 2>/dev/null || echo "⚠️ Transformers not available"
+
+# Ensure the AI detector script is in the right location
+if [ -f "server/services/ai-detector.py" ]; then
+    echo "✅ AI detector script found"
+    # Copy to dist if it exists
+    if [ -d "dist" ]; then
+        mkdir -p dist/server/services
+        cp server/services/ai-detector.py dist/server/services/ 2>/dev/null || echo "📝 Note: Could not copy to dist directory"
+        cp server/services/ai-detector.py dist/ 2>/dev/null || echo "📝 Note: Could not copy to dist root"
+    fi
+else
+    echo "❌ AI detector script not found!"
 fi
-
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo "❌ Error: OPENAI_API_KEY environment variable is required"
-    exit 1
-fi
-
-if [ -z "$ELEVENLABS_API_KEY" ]; then
-    echo "❌ Error: ELEVENLABS_API_KEY environment variable is required"
-    exit 1
-fi
-
-echo "✅ All required environment variables are set"
-echo "🌐 Starting server on port $PORT"
 
 # Start the application
-node dist/index.js
+echo "🌐 Starting Node.js server..."
+NODE_ENV=production node dist/index.js
