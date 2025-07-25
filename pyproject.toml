@@ -1,25 +1,9 @@
-[build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "askmira-ai-detector"
-version = "1.0.0"
-description = "AI Detection service using Desklib model"
-requires-python = ">=3.8"
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
 dependencies = []
-
-[project.optional-dependencies]
-ml = [
-    "torch",
-    "transformers", 
-    "numpy",
-    "huggingface-hub",
-    "safetensors",
-    "tokenizers",
-    "sentencepiece",
-    "protobuf"
-]
 
 [[tool.uv.index]]
 explicit = true
