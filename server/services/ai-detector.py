@@ -95,29 +95,14 @@ def main():
             print(json.dumps(result))
             
         except Exception as model_error:
-            # Fallback to simple heuristics if model loading fails
+            # NO FALLBACK - User explicitly requested only the ML model
             print(json.dumps({
-                "error": f"Model loading failed: {str(model_error)}",
-                "fallback": True,
-                "probability": 0.5,
-                "label": "Human Written",
-                "confidence": 0.6
+                "error": f"Desklib AI Detection Model failed to load: {str(model_error)}",
+                "model_directory": model_directory,
+                "device": str(device),
+                "available_models": "This deployment requires the Desklib model to work properly"
             }), file=sys.stderr)
-            
-            # Simple fallback analysis
-            word_count = len(input_text.split())
-            ai_indicators = ["furthermore", "moreover", "consequently", "comprehensive", "extensive"]
-            ai_score = sum(1 for indicator in ai_indicators if indicator in input_text.lower())
-            
-            probability = min(0.9, 0.3 + (ai_score * 0.15) + (word_count > 100) * 0.1)
-            label = "AI Generated" if probability > 0.5 else "Human Written"
-            
-            result = {
-                "probability": probability,
-                "label": label,
-                "confidence": abs(probability - 0.5) * 2
-            }
-            print(json.dumps(result))
+            sys.exit(1)
 
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
