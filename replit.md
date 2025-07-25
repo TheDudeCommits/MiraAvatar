@@ -103,14 +103,7 @@ The application is designed to be easily deployable on Replit with minimal confi
 
 ## Recent Changes
 
-### July 25, 2025 - Latest Update: DEPLOYMENT FIXES APPLIED
-✓ Fixed duplicate runPythonScript method in mlAiDetector.ts by renaming to executeScript
-✓ Removed large video files (50+ MB total) that exceeded 8 GiB deployment limit  
-✓ Created comprehensive .gitignore to exclude large media files from future deployments
-✓ Optimized build process by removing attached_assets video files and public video files
-✓ Application now ready for deployment within size constraints
-
-### July 25, 2025 - Earlier Update: FIXED USER'S PYTHON ML MODEL - COMPLETED
+### July 25, 2025 - Latest Update: FIXED USER'S PYTHON ML MODEL - COMPLETED
 - **USER'S ML MODEL WORKING**: Successfully implemented user's provided Desklib AI Detection Model with adapted Python script
 - **99.98% Accuracy**: System correctly identifies AI-generated formal text with 99.98% probability and 99.97% confidence
 - **90.3% Accuracy**: System identifies mixed formal text with 90.3% probability and 80.6% confidence  
