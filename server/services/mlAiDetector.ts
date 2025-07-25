@@ -93,14 +93,14 @@ export class MLAIDetectorService {
     // Try the adapted version of your model first
     const adaptedScript = path.join(__dirname, 'ai-detector-adapted.py');
     try {
-      return await this.runPythonScript(adaptedScript, text, true);
+      return await this.executeScript(adaptedScript, text, true);
     } catch (error) {
       console.log('Adapted model failed, trying original model...');
-      return await this.runPythonScript(pythonScript, text, false);
+      return await this.executeScript(pythonScript, text, false);
     }
   }
 
-  private async runPythonScript(scriptPath: string, text: string, isAdapted: boolean): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
+  private async executeScript(scriptPath: string, text: string, isAdapted: boolean): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
     return new Promise((resolve, reject) => {
       console.log(`Using ${isAdapted ? 'adapted' : 'original'} Python script:`, scriptPath);
       const pythonProcess = spawn('python3', [scriptPath], {
