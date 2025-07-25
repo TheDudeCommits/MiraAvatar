@@ -34,9 +34,9 @@ export class MLAIDetectorService {
   }
 
   private async executeUserPythonScript(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
-    // Use ONLY the user's adapted Python script - NO fallbacks, NO dependency checks
-    const userScript = path.join(__dirname, 'ai-detector-adapted.py');
-    console.log('Executing user\'s Python script:', userScript);
+    // Use ONLY the user's ACTUAL Desklib script - NO fallbacks, NO dependency checks
+    const userScript = path.join(__dirname, 'user-desklib-model.py');
+    console.log('Executing user\'s ACTUAL Desklib script:', userScript);
     
     return new Promise((resolve, reject) => {
       const pythonProcess = spawn('python3', [userScript], {
