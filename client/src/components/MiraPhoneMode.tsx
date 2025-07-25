@@ -16,9 +16,8 @@ export interface MiraPhoneModeRef {
   handleVoiceResponse: (audioUrl: string, transcript: string, onAudioEnd?: () => void) => Promise<void>;
 }
 
-// Video file removed for deployment size constraints  
-// Using placeholder for now - external video hosting recommended
-const miraVideo = 'https://placeholder-video-url.mp4';
+// Use newest video file with no background
+const miraVideo = '/mira-avatar-newest.mp4';
 
 // Elegant starfield visualization with distant glowing stars
 const DataCluster = () => {

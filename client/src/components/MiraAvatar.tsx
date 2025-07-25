@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-// Video file removed for deployment size constraints
-// Using placeholder for now - external video hosting recommended
-const miraVideo = 'https://placeholder-video-url.mp4';
+import miraVideo from '@assets/Mira CyberPunk BG Talking_1753109718925.mp4';
 
 interface MiraAvatarProps {
   isPlaying: boolean;
