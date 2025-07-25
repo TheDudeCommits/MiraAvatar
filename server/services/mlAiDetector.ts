@@ -37,9 +37,14 @@ export class MLAIDetectorService {
       const pythonScript = path.join(__dirname, 'ai-detector.py');
       console.log('Calling Python script:', pythonScript);
       
-      const pythonProcess = spawn('python3', [pythonScript], {
+      // Use absolute python path for production reliability
+      const pythonPath = '/home/runner/workspace/.pythonlibs/bin/python3';
+      console.log('Using Python path:', pythonPath);
+      
+      const pythonProcess = spawn(pythonPath, [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: path.dirname(pythonScript)
+        cwd: path.dirname(pythonScript),
+        timeout: 30000 // 30 second timeout
       });
 
       let output = '';
@@ -58,7 +63,10 @@ export class MLAIDetectorService {
       });
 
       pythonProcess.on('close', (code) => {
+        clearTimeout(timeoutId);
         console.log('Python process closed with code:', code);
+        console.log('Raw output:', output);
+        console.log('Error output:', errorOutput);
         
         if (code === 0) {
           try {
@@ -72,18 +80,25 @@ export class MLAIDetectorService {
           } catch (parseError) {
             console.error('JSON parse error:', parseError);
             console.error('Raw output:', output);
-            reject(new Error('Failed to parse Python output'));
+            reject(new Error(`Failed to parse Python output: ${parseError.message}`));
           }
         } else {
-          console.error('Python script failed:', errorOutput);
-          reject(new Error('Python script execution failed'));
+          console.error('Python script failed with exit code:', code);
+          console.error('Error output:', errorOutput);
+          reject(new Error(`Python script execution failed with code ${code}: ${errorOutput}`));
         }
       });
 
       pythonProcess.on('error', (error) => {
         console.error('Python process error:', error);
-        reject(error);
+        reject(new Error(`Failed to start Python process: ${error.message}`));
       });
+
+      // Add timeout handling
+      const timeoutId = setTimeout(() => {
+        pythonProcess.kill('SIGKILL');
+        reject(new Error('Python script execution timeout (30s)'));
+      }, 30000);
     });
   }
 
