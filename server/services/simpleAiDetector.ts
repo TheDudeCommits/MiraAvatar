@@ -1,3 +1,6 @@
+import { spawn } from 'child_process';
+import path from 'path';
+
 export interface AIDetectionResult {
   probability: number;
   label: 'AI Generated' | 'Human Written';
@@ -7,9 +10,17 @@ export interface AIDetectionResult {
 
 export class SimpleAIDetectorService {
   async detectAIText(inputText: string): Promise<AIDetectionResult> {
-    console.log('Running simple AI detection analysis...');
+    console.log('Running AI detection analysis...');
     
-    const analysis = this.analyzeTextCharacteristics(inputText);
+    // Try Python script first, fallback to analysis if it fails
+    let analysis;
+    try {
+      analysis = await this.runPythonDetection(inputText);
+    } catch (error) {
+      console.log('Python detection failed, using fallback analysis:', error);
+      analysis = this.analyzeTextCharacteristics(inputText);
+    }
+    
     const miraAnalysis = this.generateSimpleMiraAnalysis(inputText, analysis.probability, analysis.label);
     
     return {
@@ -18,6 +29,47 @@ export class SimpleAIDetectorService {
       confidence: this.calculateConfidence(analysis.probability),
       miraAnalysis
     };
+  }
+
+  private async runPythonDetection(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written'}> {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, 'ai-detector.py');
+      const pythonProcess = spawn('python3', [pythonScript, text]);
+
+      let output = '';
+      let errorOutput = '';
+
+      pythonProcess.stdout.on('data', (data: any) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data: any) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code: number) => {
+        if (code !== 0) {
+          console.error('Python script error:', errorOutput);
+          reject(new Error(`Python script failed with code ${code}: ${errorOutput}`));
+          return;
+        }
+
+        try {
+          const result = JSON.parse(output.trim());
+          if (result.error) {
+            reject(new Error(result.error));
+            return;
+          }
+          resolve({
+            probability: result.probability,
+            label: result.label
+          });
+        } catch (parseError) {
+          console.error('Failed to parse Python output:', parseError);
+          reject(new Error('Failed to parse Python output'));
+        }
+      });
+    });
   }
 
   private analyzeTextCharacteristics(text: string): {probability: number, label: 'AI Generated' | 'Human Written'} {

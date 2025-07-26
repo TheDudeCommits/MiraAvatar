@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MiraAvatar } from '@/components/MiraAvatar';
 import { MiraPhoneMode, type MiraPhoneModeRef } from '@/components/MiraPhoneMode';
 import { ChatSidebar } from '@/components/ChatSidebar';
-import { Mic, MicOff, Send, Upload, Bot, User, Loader2, Radio, FileText, MessageSquare, Volume2, PanelLeftOpen, PanelLeftClose, Shield } from 'lucide-react';
+import { Mic, MicOff, Send, Upload, Bot, User, Loader2, Radio, FileText, MessageSquare, Volume2, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import type { SessionMessage } from '@shared/schema';
 
@@ -21,7 +21,7 @@ interface Message {
   isProcessing?: boolean;
 }
 
-type InteractionMode = 'text' | 'click-to-talk' | 'mira' | 'ai-detector' | 'continuous';
+type InteractionMode = 'text' | 'click-to-talk' | 'mira' | 'continuous' | 'ai-detector';
 
 export default function UnifiedChat() {
   // Chat session state
@@ -61,16 +61,6 @@ export default function UnifiedChat() {
   // iframe state
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // AI Detector state
-  const [detectorText, setDetectorText] = useState('');
-  const [detectionResult, setDetectionResult] = useState<{
-    probability: number;
-    label: string;
-    confidence: number;
-    analysis: string;
-  } | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
 
   const { toast } = useToast();
 
@@ -541,63 +531,6 @@ export default function UnifiedChat() {
     playWithRetry();
   };
 
-  // Send AI detection request
-  const sendDetectionRequest = async () => {
-    if (!detectorText.trim()) return;
-
-    const textContent = detectorText.trim();
-    setIsDetecting(true);
-
-    try {
-      const response = await fetch('/api/ai-detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textContent })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to analyze text');
-      }
-
-      const result = await response.json();
-      setDetectionResult(result);
-
-      // Add to messages as well for the chat history
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        type: 'user',
-        content: `📄 AI Detection Request: "${textContent.substring(0, 100)}${textContent.length > 100 ? '...' : ''}"`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, userMessage]);
-
-      const detectionMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: `🔍 **AI Detection Results**
-
-**Probability:** ${(result.probability * 100).toFixed(1)}% AI-Generated
-**Label:** ${result.label}
-**Confidence:** ${(result.confidence * 100).toFixed(1)}%
-
-**Mira's Analysis:**
-${result.analysis}`,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, detectionMessage]);
-
-    } catch (error) {
-      console.error('Detection error:', error);
-      toast({
-        title: "Detection Error",
-        description: "Failed to analyze text. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsDetecting(false);
-    }
-  };
-
   // Send text message
   const sendTextMessage = async () => {
     if (!inputText.trim()) return;
@@ -619,49 +552,102 @@ ${result.analysis}`,
       createMessageMutation.mutate({
         content: userContent,
         type: 'user',
-        messageType: 'text'
+        messageType: interactionMode === 'ai-detector' ? 'ai-detection' : 'text'
       });
 
       // Start processing AI response
       setIsProcessing(true);
 
-      // Get AI response
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message: userContent,
-          includeVoice: false
-        })
-      });
+      let response, data;
+      
+      if (interactionMode === 'ai-detector') {
+        // Send to AI detection endpoint
+        response = await fetch('/api/ai-detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: userContent })
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
+        if (!response.ok) {
+          throw new Error('Failed to analyze text');
+        }
+
+        data = await response.json();
+
+        // Create formatted AI detection response
+        const probabilityPercent = (data.probability * 100).toFixed(1);
+        const confidencePercent = (data.confidence * 100).toFixed(1);
+        const isAIGenerated = data.label === 'AI Generated';
+        
+        const detectionResponse = `## 🔍 AI Detection Results
+
+**${data.label}** - **${probabilityPercent}%** probability
+
+**Confidence Level:** ${confidencePercent}%
+
+**Mira's Analysis:**
+${data.analysis}
+
+---
+*Text analyzed: ${userContent.length} characters*`;
+
+        // Add AI detection response to local state
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: detectionResponse,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Save assistant message to database (async, doesn't block UI)
+        createMessageMutation.mutate({
+          content: detectionResponse,
+          type: 'assistant',
+          messageType: 'ai-detection-result'
+        });
+
+      } else {
+        // Get regular AI chat response
+        response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            message: userContent,
+            includeVoice: false
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to get response');
+        }
+
+        data = await response.json();
+
+        // Add AI response to local state immediately
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: data.response,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Save assistant message to database (async, doesn't block UI)
+        createMessageMutation.mutate({
+          content: data.response,
+          type: 'assistant',
+          messageType: 'text'
+        });
       }
-
-      const data = await response.json();
-
-      // Add AI response to local state immediately
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: data.response,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-
-      // Save assistant message to database (async, doesn't block UI)
-      createMessageMutation.mutate({
-        content: data.response,
-        type: 'assistant',
-        messageType: 'text'
-      });
 
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: interactionMode === 'ai-detector' 
+          ? "Failed to analyze text. Please try again." 
+          : "Failed to send message. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -1118,7 +1104,7 @@ ${result.analysis}`,
                   : 'sleek-button'
               }`}
             >
-              <Shield className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 mr-2" />
               AI DETECTOR
             </Button>
             <Button
@@ -1273,8 +1259,8 @@ ${result.analysis}`,
 
         {/* Input Area */}
         <div className="space-y-4">
-          {/* Voice Controls (for voice modes but not MIRA or AI DETECTOR) */}
-          {interactionMode !== 'text' && interactionMode !== 'mira' && interactionMode !== 'ai-detector' && (
+          {/* Voice Controls (for voice modes but not MIRA) */}
+          {interactionMode !== 'text' && interactionMode !== 'mira' && (
             <div className="flex justify-center">
               <Button
                 {...(interactionMode === 'click-to-talk'
@@ -1329,109 +1315,6 @@ ${result.analysis}`,
               >
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
-            </div>
-          )}
-
-          {/* AI Detector Input */}
-          {interactionMode === 'ai-detector' && (
-            <div className="space-y-4">
-              <div className="glass-enhanced cyberpunk-border rounded-lg p-4">
-                <label className="block text-sm font-medium text-emerald-300 mb-2 titillium-web-semibold">
-                  📄 Text to Analyze for AI Detection
-                </label>
-                <textarea
-                  value={detectorText}
-                  onChange={(e) => setDetectorText(e.target.value)}
-                  placeholder="Paste text here to analyze if it's AI-generated or human-written. Minimum 10 characters required for reliable detection..."
-                  className="titillium-web-regular w-full h-32 glass-enhanced border-gray-600/30 text-gray-100 placeholder:text-gray-400/70 bg-transparent resize-none"
-                  disabled={isDetecting}
-                />
-                <div className="flex justify-between items-center mt-3">
-                  <div className="text-xs text-gray-400">
-                    {detectorText.length} characters {detectorText.length < 10 && detectorText.length > 0 && '(minimum 10 required)'}
-                  </div>
-                  <Button
-                    onClick={sendDetectionRequest}
-                    disabled={!detectorText.trim() || detectorText.length < 10 || isDetecting}
-                    variant="ghost"
-                    className="titillium-web-semibold sleek-button px-6"
-                  >
-                    {isDetecting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="w-4 h-4 mr-2" />
-                        Detect AI
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Visual Detection Results */}
-              {detectionResult && (
-                <div className="glass-enhanced cyberpunk-border rounded-lg p-4 space-y-4">
-                  <h3 className="text-lg font-bold text-emerald-300 titillium-web-bold flex items-center">
-                    <Shield className="w-5 h-5 mr-2" />
-                    AI Detection Results
-                  </h3>
-                  
-                  {/* Probability Score */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-300">AI Generation Probability</span>
-                      <span className={`text-lg font-bold ${
-                        detectionResult.probability > 0.7 ? 'text-red-400' : 
-                        detectionResult.probability > 0.3 ? 'text-yellow-400' : 'text-green-400'
-                      }`}>
-                        {(detectionResult.probability * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${
-                          detectionResult.probability > 0.7 ? 'bg-red-500' : 
-                          detectionResult.probability > 0.3 ? 'bg-yellow-500' : 'bg-green-500'
-                        }`}
-                        style={{ width: `${detectionResult.probability * 100}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Label and Confidence */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className={`p-3 rounded-lg border-2 ${
-                      detectionResult.label === 'AI Generated' 
-                        ? 'bg-red-500/20 border-red-400/30' 
-                        : 'bg-green-500/20 border-green-400/30'
-                    }`}>
-                      <div className="text-xs text-gray-300 mb-1">Classification</div>
-                      <div className={`font-bold ${
-                        detectionResult.label === 'AI Generated' ? 'text-red-400' : 'text-green-400'
-                      }`}>
-                        {detectionResult.label}
-                      </div>
-                    </div>
-                    <div className="p-3 rounded-lg border-2 bg-blue-500/20 border-blue-400/30">
-                      <div className="text-xs text-gray-300 mb-1">Confidence</div>
-                      <div className="font-bold text-blue-400">
-                        {(detectionResult.confidence * 100).toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Mira's Analysis */}
-                  <div className="p-3 rounded-lg bg-gray-800/50 border border-gray-600/30">
-                    <div className="text-xs text-emerald-300 mb-2 font-semibold">Mira's Analysis</div>
-                    <div className="text-sm text-gray-200 leading-relaxed">
-                      {detectionResult.analysis}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
