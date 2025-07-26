@@ -50,6 +50,7 @@ export default function UnifiedChat() {
   const streamRef = useRef<MediaStream | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textFileInputRef = useRef<HTMLInputElement>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const miraRef = useRef<MiraPhoneModeRef>(null);
 
@@ -980,6 +981,43 @@ ${data.analysis}
     poll();
   };
 
+  // Handle text file upload for AI detection
+  const handleTextFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset the input so the same file can be uploaded again
+    event.target.value = '';
+
+    try {
+      const text = await file.text();
+      
+      // Set the extracted text into the input field
+      setInputText(text);
+      
+      // Add a user message indicating file upload
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: `📄 Uploaded document: ${file.name} (${text.length} characters)`,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      toast({
+        title: "Document Uploaded",
+        description: `Extracted ${text.length} characters from ${file.name}`,
+      });
+    } catch (error) {
+      console.error('Text file upload failed:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to read text file. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Handle MIRA mode transcription clearing
   useEffect(() => {
     if (!isMiraActive && interactionMode !== 'mira') {
@@ -1232,7 +1270,7 @@ ${data.analysis}
                       </div>
                     </div>
                   ))}
-                  {isProcessing && interactionMode === 'text' && (
+                  {isProcessing && (interactionMode === 'text' || interactionMode === 'ai-detector') && (
                     <div className="flex items-start gap-3 flex-row opacity-80">
                       {/* Mira Avatar */}
                       <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-gray-700 to-gray-800 border border-primary/30 shadow-lg">
@@ -1244,7 +1282,9 @@ ${data.analysis}
                         <div className="message-bubble group relative titillium-web-regular inline-block p-3 rounded-2xl shadow-xl backdrop-blur-xl border bg-gradient-to-br from-gray-800/95 to-gray-900/95 border-gray-600/20 text-white rounded-bl-md">
                           <div className="flex items-center space-x-2">
                             <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                            <span className="text-sm text-gray-300">Mira is analyzing...</span>
+                            <span className="text-sm text-gray-300">
+                              {interactionMode === 'ai-detector' ? 'Analyzing text for AI detection...' : 'Mira is analyzing...'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1291,8 +1331,8 @@ ${data.analysis}
             </div>
           )}
 
-          {/* Text Input (for text mode) */}
-          {interactionMode === 'text' && (
+          {/* Text Input (for text mode and ai-detector mode) */}
+          {(interactionMode === 'text' || interactionMode === 'ai-detector') && (
             <div className="flex space-x-2">
               <Input
                 value={inputText}
@@ -1303,7 +1343,10 @@ ${data.analysis}
                     sendTextMessage();
                   }
                 }}
-                placeholder="Enter neural data transmission..."
+                placeholder={interactionMode === 'ai-detector' 
+                  ? "Paste text to analyze for AI detection..." 
+                  : "Enter neural data transmission..."
+                }
                 className="titillium-web-regular flex-1 glass-enhanced border-gray-600/30 text-gray-100 placeholder:text-gray-400/70"
                 disabled={false}
               />
@@ -1318,24 +1361,46 @@ ${data.analysis}
             </div>
           )}
 
-          {/* CV Upload Button */}
-          <div className="flex justify-center">
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              variant="ghost"
-              className="titillium-web-bold sleek-button p-3"
-              disabled={isProcessing}
-            >
-              <span className="w-6 h-6 bg-gradient-to-br from-blue-400 to-purple-500 text-white text-xs font-bold rounded flex items-center justify-center">CV</span>
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf"
-              onChange={handleCVUpload}
-              className="hidden"
-            />
-          </div>
+          {/* File Upload Button */}
+          {(interactionMode === 'text' || interactionMode === 'ai-detector') && (
+            <div className="flex justify-center space-x-3">
+              {interactionMode === 'text' && (
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  variant="ghost"
+                  className="titillium-web-bold sleek-button p-3"
+                  disabled={isProcessing}
+                >
+                  <span className="w-6 h-6 bg-gradient-to-br from-blue-400 to-purple-500 text-white text-xs font-bold rounded flex items-center justify-center">CV</span>
+                </Button>
+              )}
+              {interactionMode === 'ai-detector' && (
+                <Button
+                  onClick={() => textFileInputRef.current?.click()}
+                  variant="ghost"
+                  className="titillium-web-bold sleek-button p-3"
+                  disabled={isProcessing}
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  Upload Document
+                </Button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handleCVUpload}
+                className="hidden"
+              />
+              <input
+                ref={textFileInputRef}
+                type="file"
+                accept=".txt,.doc,.docx,.pdf"
+                onChange={handleTextFileUpload}
+                className="hidden"
+              />
+            </div>
+          )}
         </div>
       </div>
 
