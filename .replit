@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["glibcLocales", "libjpeg_turbo", "libpng", "which", "python311Packages.torch", "python311Packages.transformers", "python311Packages.numpy", "python311Packages.scikit-learn", "gcc", "glibc", "libgcc"]
+packages = ["cargo", "gcc", "glibc", "glibcLocales", "libgcc", "libiconv", "libjpeg_turbo", "libpng", "openssl", "pkg-config", "python311Packages.numpy", "python311Packages.scikit-learn", "python311Packages.torch", "python311Packages.transformers", "rustc", "which"]
 
 [deployment]
 deploymentTarget = "autoscale"
