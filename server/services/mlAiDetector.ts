@@ -16,11 +16,10 @@ export class MLAIDetectorService {
   async detectAIText(inputText: string): Promise<AIDetectionResult> {
     console.log('=== ML AI Detection Starting ===');
     console.log('Input text preview:', inputText.substring(0, 100) + '...');
-    console.log('Using ONLY user\'s Python script - NO fallbacks');
     
-    // Call ONLY user's Python ML model - NO fallbacks allowed
-    const mlResult = await this.executeUserPythonScript(inputText);
-    console.log('User\'s ML Model result:', mlResult);
+    // Call Python ML model
+    const mlResult = await this.callPythonMLModel(inputText);
+    console.log('ML Model result:', mlResult);
     
     // Generate Mira's cyberpunk analysis
     const miraAnalysis = this.generateMiraAnalysis(inputText, mlResult.probability, mlResult.label);
@@ -33,15 +32,14 @@ export class MLAIDetectorService {
     };
   }
 
-  private async executeUserPythonScript(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
-    // Use ONLY the user's ACTUAL Desklib script with PyTorch logic - NO fallbacks, NO dependency checks
-    const userScript = path.join(__dirname, 'user-desklib-model.py');
-    console.log('Executing user\'s ACTUAL Desklib script with PyTorch logic:', userScript);
-    
+  private async callPythonMLModel(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
     return new Promise((resolve, reject) => {
-      const pythonProcess = spawn('python3', [userScript], {
+      const pythonScript = path.join(__dirname, 'ai-detector.py');
+      console.log('Calling Python script:', pythonScript);
+      
+      const pythonProcess = spawn('python3', [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: path.dirname(userScript)
+        cwd: path.dirname(pythonScript)
       });
 
       let output = '';
@@ -60,42 +58,34 @@ export class MLAIDetectorService {
       });
 
       pythonProcess.on('close', (code) => {
-        console.log('User Python script closed with code:', code);
-        console.log('User Python script output:', output);
+        console.log('Python process closed with code:', code);
         
-        if (code !== 0) {
-          console.error('User Python script failed:', errorOutput);
-          reject(new Error(`User's Python script failed: ${errorOutput}`));
-          return;
-        }
-
-        try {
-          const result = JSON.parse(output.trim());
-          if (result.error) {
-            reject(new Error(result.error));
-            return;
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output.trim());
+            console.log('Parsed result:', result);
+            resolve({
+              probability: result.probability,
+              label: result.label as 'AI Generated' | 'Human Written',
+              confidence: result.confidence
+            });
+          } catch (parseError) {
+            console.error('JSON parse error:', parseError);
+            console.error('Raw output:', output);
+            reject(new Error('Failed to parse Python output'));
           }
-          
-          console.log('User Python script result:', result);
-          resolve({
-            probability: result.probability,
-            label: result.label as 'AI Generated' | 'Human Written',
-            confidence: result.confidence
-          });
-        } catch (parseError) {
-          console.error('Failed to parse user Python script output:', parseError);
-          reject(new Error('Failed to parse user Python script output'));
+        } else {
+          console.error('Python script failed:', errorOutput);
+          reject(new Error('Python script execution failed'));
         }
       });
 
       pythonProcess.on('error', (error) => {
-        console.error('Failed to execute user Python script:', error);
-        reject(new Error(`Failed to execute user's Python script: ${error.message}`));
+        console.error('Python process error:', error);
+        reject(error);
       });
     });
   }
-
-
 
   private generateMiraAnalysis(text: string, probability: number, label: string): string {
     const probPercent = (probability * 100).toFixed(1);
@@ -111,8 +101,6 @@ export class MLAIDetectorService {
     
     return responses[Math.floor(Math.random() * responses.length)];
   }
-
-
 }
 
 export const mlAiDetectorService = new MLAIDetectorService();

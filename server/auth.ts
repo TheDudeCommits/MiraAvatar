@@ -33,14 +33,11 @@ export function getSessionMiddleware() {
 
 // Passport configuration
 export function configurePassport() {
-  // Google OAuth Strategy - set default values for development
-  const googleClientId = process.env.GOOGLE_CLIENT_ID || 'dev-google-client-id';
-  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || 'dev-google-client-secret';
-  
-  if (googleClientId && googleClientSecret) {
+  // Google OAuth Strategy
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     passport.use(new GoogleStrategy({
-      clientID: googleClientId,
-      clientSecret: googleClientSecret,
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: "/auth/google/callback"
     }, async (accessToken, refreshToken, profile, done) => {
       try {

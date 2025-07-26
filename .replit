@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cargo", "gcc", "glibc", "glibcLocales", "libgcc", "libiconv", "libjpeg_turbo", "libpng", "openssl", "pkg-config", "python311Packages.numpy", "python311Packages.scikit-learn", "python311Packages.torch", "python311Packages.transformers", "rustc", "which"]
+packages = ["libjpeg_turbo", "libpng", "which"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -38,6 +38,3 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[agent]
-integrations = ["javascript_openai==1.0.0", "javascript_log_in_with_replit==1.0.0", "javascript_database==1.0.0"]

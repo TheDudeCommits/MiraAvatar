@@ -614,13 +614,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }));
 
             session.isProcessing = false;
-          } catch (error: any) {
+          } catch (error) {
             console.error('Voice processing error in WebSocket:', error);
             session.isProcessing = false;
             
             ws.send(JSON.stringify({
               type: 'error',
-              message: `Voice processing failed: ${error?.message || 'Unknown error'}`
+              message: `Voice processing failed: ${error.message}`
             }));
           }
         }
@@ -688,13 +688,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         response: aiResponse,
         audioUrl
       };
-    } catch (error: any) {
+    } catch (error) {
       console.error('❌ Voice processing failed in chained architecture:', error);
-      if (error && typeof error === 'object') {
-        error.step = error.message?.includes('transcribe') ? 'whisper' : 
-                     error.message?.includes('chat') ? 'gpt' : 
-                     error.message?.includes('speech') ? 'elevenlabs' : 'unknown';
-      }
+      error.step = error.message.includes('transcribe') ? 'whisper' : 
+                   error.message.includes('chat') ? 'gpt' : 
+                   error.message.includes('speech') ? 'elevenlabs' : 'unknown';
       throw error;
     }
   }
