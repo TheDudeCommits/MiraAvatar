@@ -7,7 +7,7 @@ import { setupAuthRoutes, requireAuth, optionalAuth } from "./auth";
 import { pdfParser } from "./services/pdf-parser";
 import { openaiService } from "./services/openai";
 import { elevenLabsService } from "./services/elevenlabs";
-import { mlAiDetectorService } from "./services/mlAiDetector";
+import { aiDetectorService } from "./services/aiDetector";
 import { insertCvAnalysisSchema, insertChatSessionSchema, insertSessionMessageSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -37,8 +37,6 @@ const audioUpload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
-
   // Setup authentication first
   setupAuthRoutes(app);
   // Enhanced health check endpoint
@@ -203,16 +201,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Text Detection endpoint (no auth required)
-  app.post("/api/ai-detect", (req, res, next) => {
-    // Skip all middleware for this endpoint
-    req.url = req.originalUrl;
-    next();
-  }, async (req, res) => {
+  // AI Text Detection endpoint
+  app.post("/api/ai-detect", async (req, res) => {
     try {
-      console.log('=== AI Detection API Called ===');
       const { text } = req.body;
-      console.log('Request body:', req.body);
       
       if (!text || typeof text !== 'string') {
         return res.status(400).json({ message: "Text is required for AI detection" });
@@ -225,9 +217,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`AI Detection request for text (${text.length} chars):`, text.substring(0, 100) + '...');
 
       // Run AI detection
-      console.log('About to call mlAiDetectorService.detectAIText...');
-      const result = await mlAiDetectorService.detectAIText(text);
-      console.log('ML AI Detection service returned:', result);
+      const result = await aiDetectorService.detectAIText(text);
+      
+      console.log('AI Detection result:', result);
 
       res.json({
         probability: result.probability,
@@ -238,8 +230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("AI Detection error in route:", error);
-      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      console.error("AI Detection error:", error);
       res.status(500).json({ message: "Failed to analyze text for AI detection" });
     }
   });
