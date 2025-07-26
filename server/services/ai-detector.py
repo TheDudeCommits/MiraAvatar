@@ -62,65 +62,37 @@ def predict_single_text(text, model, tokenizer, device, max_len=768, threshold=0
     return probability, label
 
 def main():
+    if len(sys.argv) != 2:
+        print(json.dumps({"error": "Please provide text as command line argument"}))
+        sys.exit(1)
+    
+    input_text = sys.argv[1]
+    
     try:
-        # Read input text from stdin
-        input_text = sys.stdin.read().strip()
-        
-        if not input_text:
-            print(json.dumps({"error": "No input text provided"}))
-            sys.exit(1)
-
         # --- Model and Tokenizer Directory ---
         model_directory = "desklib/ai-text-detector-v1.01"
 
-        try:
-            # --- Load tokenizer and model ---
-            tokenizer = AutoTokenizer.from_pretrained(model_directory)
-            model = DesklibAIDetectionModel.from_pretrained(model_directory)
+        # --- Load tokenizer and model ---
+        tokenizer = AutoTokenizer.from_pretrained(model_directory)
+        model = DesklibAIDetectionModel.from_pretrained(model_directory)
 
-            # --- Set up device ---
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            model.to(device)
+        # --- Set up device ---
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
 
-            # --- Run prediction ---
-            probability, predicted_label = predict_single_text(input_text, model, tokenizer, device)
-            
-            # Return results as JSON
-            result = {
-                "probability": float(probability),
-                "label": "AI Generated" if predicted_label == 1 else "Human Written",
-                "confidence": abs(probability - 0.5) * 2  # Distance from 0.5 scaled to 0-1
-            }
-            
-            print(json.dumps(result))
-            
-        except Exception as model_error:
-            # Fallback to simple heuristics if model loading fails
-            print(json.dumps({
-                "error": f"Model loading failed: {str(model_error)}",
-                "fallback": True,
-                "probability": 0.5,
-                "label": "Human Written",
-                "confidence": 0.6
-            }), file=sys.stderr)
-            
-            # Simple fallback analysis
-            word_count = len(input_text.split())
-            ai_indicators = ["furthermore", "moreover", "consequently", "comprehensive", "extensive"]
-            ai_score = sum(1 for indicator in ai_indicators if indicator in input_text.lower())
-            
-            probability = min(0.9, 0.3 + (ai_score * 0.15) + (word_count > 100) * 0.1)
-            label = "AI Generated" if probability > 0.5 else "Human Written"
-            
-            result = {
-                "probability": probability,
-                "label": label,
-                "confidence": abs(probability - 0.5) * 2
-            }
-            print(json.dumps(result))
-
+        # --- Run prediction ---
+        probability, predicted_label = predict_single_text(input_text, model, tokenizer, device)
+        
+        result = {
+            "probability": float(probability),
+            "label": "AI Generated" if predicted_label == 1 else "Human Written",
+            "predicted_label": int(predicted_label)
+        }
+        
+        print(json.dumps(result))
+        
     except Exception as e:
-        print(json.dumps({"error": str(e)}), file=sys.stderr)
+        print(json.dumps({"error": str(e)}))
         sys.exit(1)
 
 if __name__ == "__main__":

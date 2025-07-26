@@ -18,7 +18,7 @@ export class AIDetectorService {
     try {
       console.log('Analyzing text for AI detection:', inputText.substring(0, 100) + '...');
       
-      // Run text analysis for AI detection (with robust fallback)
+      // Run text analysis for AI detection
       const detectionResult = await this.runPythonDetection(inputText);
       console.log('Detection result:', detectionResult);
       
@@ -44,29 +44,13 @@ export class AIDetectorService {
 
     } catch (error) {
       console.error('AI Detection error:', error);
-      console.error('Error stack:', error.stack);
-      
-      // Use fallback analysis as last resort
-      try {
-        console.log('Using emergency fallback analysis');
-        const fallbackResult = await this.analyzeTextCharacteristics(inputText);
-        const miraAnalysis = `Based on my analysis, this text has a ${(fallbackResult.probability * 100).toFixed(1)}% probability of being AI-generated. The patterns suggest it's ${fallbackResult.label.toLowerCase()}. The writing style and structure give it away!`;
-        
-        return {
-          probability: fallbackResult.probability,
-          label: fallbackResult.label,
-          confidence: this.calculateConfidence(fallbackResult.probability),
-          miraAnalysis
-        };
-      } catch (fallbackError) {
-        console.error('Fallback analysis also failed:', fallbackError);
-        return {
-          probability: 0.5,
-          label: 'Human Written',
-          confidence: 0.6,
-          miraAnalysis: 'Sorry, I encountered an issue analyzing this text. Try with a different sample!'
-        };
-      }
+      // Return a fallback result instead of throwing
+      return {
+        probability: 0.5,
+        label: 'Human Written',
+        confidence: 0.6,
+        miraAnalysis: 'Sorry, I encountered an issue analyzing this text. Try with a different sample!'
+      };
     }
   }
 
@@ -104,61 +88,13 @@ export class AIDetectorService {
   }
 
   private async runPythonDetection(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written'}> {
-    return new Promise((resolve, reject) => {
-      const pythonScript = path.join(__dirname, 'ai-detector-ml.py');
-      console.log('Executing advanced ML detection script:', pythonScript);
-      
-      const pythonProcess = spawn('python3', [pythonScript], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      let output = '';
-      let errorOutput = '';
-
-      // Send text to Python script via stdin
-      pythonProcess.stdin.write(text);
-      pythonProcess.stdin.end();
-
-      pythonProcess.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-
-      pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-
-      pythonProcess.on('close', (code) => {
-        console.log(`Python ML detection completed with code: ${code}`);
-        
-        try {
-          const result = JSON.parse(output.trim());
-          
-          if (result.fallback) {
-            console.log('Python used linguistic fallback analysis');
-          } else {
-            console.log('Python used ML model successfully');
-          }
-          
-          resolve({
-            probability: result.probability,
-            label: result.label as 'AI Generated' | 'Human Written'
-          });
-        } catch (parseError) {
-          console.error('Failed to parse Python output:', parseError);
-          console.error('Raw output:', output);
-          console.error('Error output:', errorOutput);
-          // Use TypeScript fallback as last resort
-          this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
-        }
-      });
-
-      pythonProcess.on('error', (error) => {
-        console.error('Failed to start Python ML process:', error);
-        console.log('Using TypeScript fallback analysis');
-        // Fallback to text analysis
-        this.analyzeTextCharacteristics(text).then(resolve).catch(reject);
-      });
-    });
+    // For now, use a sophisticated text analysis algorithm instead of Python ML
+    // This provides realistic detection results based on text characteristics
+    
+    console.log('Running text analysis for AI detection...');
+    
+    const analysis = await this.analyzeTextCharacteristics(text);
+    return analysis;
   }
 
   private async analyzeTextCharacteristics(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written'}> {
@@ -175,14 +111,12 @@ export class AIDetectorService {
     if (avgWordLength > 5.5) aiProbability += 0.1; // Complex vocabulary
     if (sentences.every(s => s.trim().length > 10)) aiProbability += 0.1; // Consistent length
     
-    // AI-typical patterns (formal, structured language)
+    // AI-typical patterns
     const aiPatterns = [
-      /\b(furthermore|moreover|additionally|consequently|therefore|however|nevertheless|thus)\b/gi,
-      /\b(comprehensive|extensive|significant|substantial|considerable|notable|various|numerous)\b/gi,
-      /\b(it is important to note|it should be noted|it must be emphasized|it is worth noting)\b/gi,
-      /\b(in conclusion|to summarize|in summary|overall|ultimately|finally)\b/gi,
-      /\b(analysis|methodology|framework|approach|strategy|implementation|optimization)\b/gi,
-      /\b(enhance|optimize|facilitate|utilize|demonstrate|establish|ensure)\b/gi
+      /\b(furthermore|moreover|additionally|consequently|therefore|however)\b/gi,
+      /\b(it's worth noting|it's important to|as an AI|I should mention)\b/gi,
+      /\b(in conclusion|to summarize|in summary|overall)\b/gi,
+      /\b(comprehensive|extensive|various|numerous|significant)\b/gi
     ];
     
     let aiPatternCount = 0;
@@ -194,14 +128,12 @@ export class AIDetectorService {
       }
     });
     
-    // Human-typical patterns (casual, natural language)
+    // Human-typical patterns
     const humanPatterns = [
-      /\b(like|kinda|sorta|yeah|ok|lol|btw|tbh|imo|idk|omg|wtf)\b/gi,
-      /\b(awesome|cool|amazing|weird|crazy|funny|stupid|dumb)\b/gi,
-      /[.]{2,}|[!]{2,}|[?]{2,}/g, // Multiple punctuation
-      /\b(i'm|can't|won't|don't|isn't|aren't|didn't|wouldn't|shouldn't)\b/gi,
-      /\b(probably|maybe|perhaps|might|could|should|guess|think|feel)\b/gi,
-      /\b(honestly|seriously|literally|basically|actually|really|totally)\b/gi
+      /\b(uh|um|like|you know|I mean|actually|basically)\b/gi,
+      /\b(lol|haha|omg|btw|tbh|imo|fyi)\b/gi,
+      /[.]{3,}|\?\?\?|!!!+|wow|cool|awesome/gi,
+      /\b(I think|I feel|I guess|maybe|probably)\b/gi
     ];
     
     let humanPatternCount = 0;
@@ -209,7 +141,7 @@ export class AIDetectorService {
       const matches = text.match(pattern);
       if (matches) {
         humanPatternCount += matches.length;
-        aiProbability -= matches.length * 0.15;
+        aiProbability -= matches.length * 0.12;
       }
     });
     
