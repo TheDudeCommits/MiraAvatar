@@ -52,7 +52,7 @@ validateEnvironment();
 const app = express();
 
 // AI Detection endpoint (before all middleware)
-import { simpleAiDetectorService } from "./services/simpleAiDetector";
+import { mlAiDetectorService } from "./services/mlAiDetector";
 app.post("/api/ai-detect", express.json(), async (req, res) => {
   try {
     console.log('=== AI Detection API Called (No Middleware) ===');
@@ -68,8 +68,8 @@ app.post("/api/ai-detect", express.json(), async (req, res) => {
 
     console.log(`Processing text (${text.length} chars):`, text.substring(0, 100) + '...');
 
-    const result = await simpleAiDetectorService.detectAIText(text);
-    console.log('DeefakeTextDetection result:', result);
+    const result = await mlAiDetectorService.detectAIText(text);
+    console.log('ML AI Detection result:', result);
 
     res.json({
       probability: result.probability,

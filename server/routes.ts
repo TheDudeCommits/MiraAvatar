@@ -7,7 +7,7 @@ import { setupAuthRoutes, requireAuth, optionalAuth } from "./auth";
 import { pdfParser } from "./services/pdf-parser";
 import { openaiService } from "./services/openai";
 import { elevenLabsService } from "./services/elevenlabs";
-import { simpleAiDetectorService } from "./services/simpleAiDetector";
+import { mlAiDetectorService } from "./services/mlAiDetector";
 import { insertCvAnalysisSchema, insertChatSessionSchema, insertSessionMessageSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -225,8 +225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`AI Detection request for text (${text.length} chars):`, text.substring(0, 100) + '...');
 
       // Run AI detection
-      console.log('About to call simpleAiDetectorService.detectAIText...');
-      const result = await simpleAiDetectorService.detectAIText(text);
+      console.log('About to call mlAiDetectorService.detectAIText...');
+      const result = await mlAiDetectorService.detectAIText(text);
       console.log('ML AI Detection service returned:', result);
 
       res.json({
