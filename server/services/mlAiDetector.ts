@@ -39,7 +39,12 @@ export class MLAIDetectorService {
       
       const pythonProcess = spawn('python3', [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: path.dirname(pythonScript)
+        cwd: path.dirname(pythonScript),
+        env: {
+          ...process.env,
+          LD_LIBRARY_PATH: '/nix/store/*/lib:/usr/lib:/lib:' + (process.env.LD_LIBRARY_PATH || ''),
+          PYTHONPATH: process.env.PYTHONPATH || ''
+        }
       });
 
       let output = '';
