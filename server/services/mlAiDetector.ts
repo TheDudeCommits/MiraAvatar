@@ -33,9 +33,19 @@ export class MLAIDetectorService {
   }
 
   private async callPythonMLModel(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
+    // First try the ML model
+    try {
+      return await this.tryMLModel(text);
+    } catch (mlError) {
+      console.log('ML model failed, falling back to advanced pattern analysis:', mlError.message);
+      return await this.tryFallbackDetector(text);
+    }
+  }
+
+  private async tryMLModel(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
     return new Promise((resolve, reject) => {
       const pythonScript = path.join(__dirname, 'ai-detector.py');
-      console.log('Calling Python script:', pythonScript);
+      console.log('Trying ML model script:', pythonScript);
       
       const pythonProcess = spawn('python3', [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -58,30 +68,83 @@ export class MLAIDetectorService {
       });
 
       pythonProcess.on('close', (code) => {
-        console.log('Python process closed with code:', code);
+        console.log('ML model process closed with code:', code);
         
         if (code === 0) {
           try {
             const result = JSON.parse(output.trim());
-            console.log('Parsed result:', result);
+            console.log('ML model result:', result);
             resolve({
               probability: result.probability,
               label: result.label as 'AI Generated' | 'Human Written',
               confidence: result.confidence
             });
           } catch (parseError) {
-            console.error('JSON parse error:', parseError);
-            console.error('Raw output:', output);
-            reject(new Error('Failed to parse Python output'));
+            console.error('ML model JSON parse error:', parseError);
+            reject(new Error('Failed to parse ML model output'));
           }
         } else {
-          console.error('Python script failed:', errorOutput);
-          reject(new Error('Python script execution failed'));
+          console.error('ML model script failed:', errorOutput);
+          reject(new Error('ML model execution failed'));
         }
       });
 
       pythonProcess.on('error', (error) => {
-        console.error('Python process error:', error);
+        console.error('ML model process error:', error);
+        reject(error);
+      });
+    });
+  }
+
+  private async tryFallbackDetector(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, 'simple-ai-detector.py');
+      console.log('Using fallback detector:', pythonScript);
+      
+      const pythonProcess = spawn('python3', [pythonScript], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: path.dirname(pythonScript)
+      });
+
+      let output = '';
+      let errorOutput = '';
+
+      // Send text to Python
+      pythonProcess.stdin.write(text);
+      pythonProcess.stdin.end();
+
+      pythonProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      pythonProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+      });
+
+      pythonProcess.on('close', (code) => {
+        console.log('Fallback detector process closed with code:', code);
+        
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output.trim());
+            console.log('Fallback detector result:', result);
+            resolve({
+              probability: result.probability,
+              label: result.label as 'AI Generated' | 'Human Written',
+              confidence: result.confidence
+            });
+          } catch (parseError) {
+            console.error('Fallback detector JSON parse error:', parseError);
+            reject(new Error('Failed to parse fallback detector output'));
+          }
+        } else {
+          console.error('Fallback detector script failed:', errorOutput);
+          reject(new Error('Fallback detector execution failed'));
+        }
+      });
+
+      pythonProcess.on('error', (error) => {
+        console.error('Fallback detector process error:', error);
         reject(error);
       });
     });
