@@ -37,6 +37,8 @@ const audioUpload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
+
   // Setup authentication first
   setupAuthRoutes(app);
   // Enhanced health check endpoint
@@ -189,36 +191,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI Detection endpoint
-  app.post("/api/ai-detect", async (req, res) => {
-    try {
-      const { text } = req.body;
-      
-      if (!text || typeof text !== 'string') {
-        return res.status(400).json({ message: "Text is required for AI detection" });
-      }
-
-      if (text.length < 10) {
-        return res.status(400).json({ message: "Text must be at least 10 characters long" });
-      }
-
-      // Use the AI detector service
-      const result = await simpleAiDetectorService.detectAIText(text);
-      
-      res.json({
-        probability: result.probability,
-        label: result.label,
-        confidence: result.confidence,
-        analysis: result.miraAnalysis,
-        textLength: text.length
-      });
-
-    } catch (error) {
-      console.error("AI Detection error:", error);
-      res.status(500).json({ message: "Failed to analyze text for AI detection" });
-    }
-  });
-
   // Get chat history
   app.get("/api/chat/history", async (req, res) => {
     try {
@@ -228,6 +200,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Chat history error:", error);
       res.status(500).json({ message: "Failed to get chat history" });
+    }
+  });
+
+  // AI Text Detection endpoint (no auth required)
+  app.post("/api/ai-detect", (req, res, next) => {
+    // Skip all middleware for this endpoint
+    req.url = req.originalUrl;
+    next();
+  }, async (req, res) => {
+    try {
+      console.log('=== AI Detection API Called ===');
+      const { text } = req.body;
+      console.log('Request body:', req.body);
+      
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ message: "Text is required for AI detection" });
+      }
+
+      if (text.length < 10) {
+        return res.status(400).json({ message: "Text too short for reliable detection (minimum 10 characters)" });
+      }
+
+      console.log(`AI Detection request for text (${text.length} chars):`, text.substring(0, 100) + '...');
+
+      // Run AI detection
+      console.log('About to call simpleAiDetectorService.detectAIText...');
+      const result = await simpleAiDetectorService.detectAIText(text);
+      console.log('ML AI Detection service returned:', result);
+
+      res.json({
+        probability: result.probability,
+        label: result.label,
+        confidence: result.confidence,
+        analysis: result.miraAnalysis,
+        textLength: text.length
+      });
+
+    } catch (error) {
+      console.error("AI Detection error in route:", error);
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ message: "Failed to analyze text for AI detection" });
     }
   });
 

@@ -50,6 +50,41 @@ console.log(`🚀 Starting application in ${process.env.NODE_ENV} mode`);
 validateEnvironment();
 
 const app = express();
+
+// AI Detection endpoint (before all middleware)
+import { simpleAiDetectorService } from "./services/simpleAiDetector";
+app.post("/api/ai-detect", express.json(), async (req, res) => {
+  try {
+    console.log('=== AI Detection API Called (No Middleware) ===');
+    const { text } = req.body;
+    
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ message: "Text is required for AI detection" });
+    }
+
+    if (text.length < 10) {
+      return res.status(400).json({ message: "Text too short for reliable detection (minimum 10 characters)" });
+    }
+
+    console.log(`Processing text (${text.length} chars):`, text.substring(0, 100) + '...');
+
+    const result = await simpleAiDetectorService.detectAIText(text);
+    console.log('DeefakeTextDetection result:', result);
+
+    res.json({
+      probability: result.probability,
+      label: result.label,
+      confidence: result.confidence,
+      analysis: result.miraAnalysis,
+      textLength: text.length
+    });
+
+  } catch (error) {
+    console.error("AI Detection error (no middleware):", error);
+    res.status(500).json({ message: "Failed to analyze text for AI detection" });
+  }
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
