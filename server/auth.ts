@@ -1,6 +1,5 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as TwitterStrategy } from 'passport-twitter';
 import session from 'express-session';
 import type { Express, Request, RequestHandler } from 'express';
 import { storage } from './storage';
@@ -16,6 +15,7 @@ import {
   parseWalletAuthPayload,
   verifyWalletAuthentication,
 } from './services/wallet-auth';
+import { HardenedTwitterStrategy } from './services/twitter-strategy';
 
 function getSessionSecret(): string {
   const configuredSecret = process.env.SESSION_SECRET;
@@ -150,7 +150,7 @@ export function configurePassport() {
 
   // Twitter OAuth Strategy
   if (process.env.TWITTER_CONSUMER_KEY && process.env.TWITTER_CONSUMER_SECRET) {
-    passport.use(new TwitterStrategy({
+    passport.use(new HardenedTwitterStrategy({
       consumerKey: process.env.TWITTER_CONSUMER_KEY,
       consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
       callbackURL: "/auth/twitter/callback"
