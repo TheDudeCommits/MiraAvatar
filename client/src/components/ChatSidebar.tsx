@@ -50,7 +50,8 @@ export function ChatSidebar({
   // Create new session mutation
   const createSessionMutation = useMutation({
     mutationFn: async (title: string): Promise<ChatSession> => {
-      return await apiRequest("/api/sessions", "POST", { title }) as ChatSession;
+      const response = await apiRequest("POST", "/api/sessions", { title });
+      return response.json() as Promise<ChatSession>;
     },
     onSuccess: (newSession: ChatSession) => {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions"] });

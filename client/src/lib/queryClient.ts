@@ -7,16 +7,78 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+let csrfTokenPromise: Promise<string> | undefined;
+
+async function getCsrfToken(forceRefresh = false): Promise<string> {
+  if (forceRefresh) {
+    csrfTokenPromise = undefined;
+  }
+
+  csrfTokenPromise ??= fetch("/auth/csrf-token", {
+    credentials: "include",
+    cache: "no-store",
+  })
+    .then(async (response) => {
+      await throwIfResNotOk(response);
+      const body: unknown = await response.json();
+      if (
+        !body ||
+        typeof body !== "object" ||
+        !("csrfToken" in body) ||
+        typeof body.csrfToken !== "string"
+      ) {
+        throw new Error("The server returned an invalid CSRF token");
+      }
+      return body.csrfToken;
+    })
+    .catch((error) => {
+      csrfTokenPromise = undefined;
+      throw error;
+    });
+
+  return csrfTokenPromise;
+}
+
+export async function csrfFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> {
+  const method = (init.method ?? "GET").toUpperCase();
+  if (SAFE_METHODS.has(method)) {
+    return fetch(input, { ...init, credentials: "include" });
+  }
+
+  const send = async (forceRefresh: boolean) => {
+    const headers = new Headers(init.headers);
+    headers.set("X-CSRF-Token", await getCsrfToken(forceRefresh));
+    return fetch(input, {
+      ...init,
+      method,
+      headers,
+      credentials: "include",
+    });
+  };
+
+  let response = await send(false);
+  if (
+    response.status === 403 &&
+    response.headers.get("X-CSRF-Error") === "invalid-token"
+  ) {
+    response = await send(true);
+  }
+  return response;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const res = await csrfFetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
   });
 
   await throwIfResNotOk(res);

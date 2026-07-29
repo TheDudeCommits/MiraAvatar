@@ -5,6 +5,7 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+import { staticRateLimiter } from "./security";
 
 const viteLogger = createLogger();
 
@@ -40,6 +41,7 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
+  app.use(staticRateLimiter);
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
@@ -76,6 +78,7 @@ export function serveStatic(app: Express) {
     );
   }
 
+  app.use(staticRateLimiter);
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
