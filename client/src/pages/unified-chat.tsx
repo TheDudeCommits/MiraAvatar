@@ -9,7 +9,8 @@ import { MiraAvatar } from '@/components/MiraAvatar';
 import { MiraPhoneMode, type MiraPhoneModeRef } from '@/components/MiraPhoneMode';
 import { ChatSidebar } from '@/components/ChatSidebar';
 import { Mic, MicOff, Send, Upload, Bot, User, Loader2, Radio, FileText, MessageSquare, Volume2, PanelLeftOpen, PanelLeftClose, Shield } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, csrfFetch } from '@/lib/queryClient';
+import { SafeMessageContent } from '@/lib/safe-message-content';
 import type { SessionMessage } from '@shared/schema';
 
 interface Message {
@@ -75,7 +76,7 @@ export default function UnifiedChat() {
   const { toast } = useToast();
 
   // Session messages query
-  const { data: sessionMessages = [] } = useQuery({
+  const { data: sessionMessages = [] } = useQuery<SessionMessage[]>({
     queryKey: ["/api/sessions", currentSessionId, "messages"],
     enabled: !!currentSessionId,
   });
@@ -237,9 +238,7 @@ export default function UnifiedChat() {
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
-        if (mediaRecorderRef.current.state !== 'inactive') {
-          mediaRecorderRef.current.stop();
-        }
+        mediaRecorderRef.current.stop();
       } catch (e) {
         console.warn('Error stopping media recorder:', e);
       }
@@ -416,56 +415,44 @@ export default function UnifiedChat() {
     }
   };
 
-  // Format CV analysis for display with improved styling
+  // Keep analysis as plain text/limited markdown; SafeMessageContent renders it
+  // as React nodes so model- or document-supplied values never become HTML.
   const formatCVAnalysis = (analysis: any) => {
-    const score = analysis.score || 0;
-    const scoreColor = score < 50 ? 'text-red-400' : score < 80 ? 'text-yellow-400' : 'text-green-400';
-    const scoreBgColor = score < 50 ? 'bg-red-500/20 border-red-400/30' : score < 80 ? 'bg-yellow-500/20 border-yellow-400/30' : 'bg-green-500/20 border-green-400/30';
-    
-    return `<div class="cv-analysis-container space-y-6">
-      <!-- Header with Score -->
-      <div class="text-center">
-        <h1 class="text-2xl font-bold text-white mb-4">CV Analysis Results</h1>
-        <div class="${scoreBgColor} rounded-xl p-4 border-2 inline-block">
-          <div class="text-sm text-gray-300 mb-1">Overall Score</div>
-          <div class="${scoreColor} text-3xl font-bold">${score}/100</div>
-        </div>
-      </div>
+    const numericScore = Number(analysis?.score);
+    const score = Number.isFinite(numericScore)
+      ? Math.max(0, Math.min(100, Math.round(numericScore)))
+      : 0;
+    const toItems = (value: unknown, fallback: string) =>
+      Array.isArray(value) && value.length > 0
+        ? value.slice(0, 20).map((item) => String(item))
+        : [fallback];
+    const strengths = toItems(
+      analysis?.strengths,
+      'Strong technical background identified',
+    );
+    const improvements = toItems(
+      analysis?.improvements,
+      'Enhancement opportunities identified',
+    );
+    const feedback =
+      typeof analysis?.feedback === 'string' && analysis.feedback.length > 0
+        ? analysis.feedback
+        : 'Comprehensive analysis completed with actionable insights.';
 
-      <!-- Strengths and Improvements Side by Side -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Strengths Box -->
-        <div class="bg-green-500/20 border-2 border-green-400/30 rounded-xl p-4">
-          <h2 class="text-lg font-semibold text-green-400 mb-3 flex items-center">
-            <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-            Key Strengths
-          </h2>
-          <ul class="space-y-2">
-            ${analysis.strengths?.map((s: string) => `<li class="text-sm text-gray-200 flex items-start"><span class="text-green-400 mr-2">•</span><span>${s}</span></li>`).join('') || '<li class="text-sm text-gray-300">Strong technical background identified</li>'}
-          </ul>
-        </div>
-
-        <!-- Improvements Box -->
-        <div class="bg-red-500/20 border-2 border-red-400/30 rounded-xl p-4">
-          <h2 class="text-lg font-semibold text-red-400 mb-3 flex items-center">
-            <span class="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
-            Areas for Improvement
-          </h2>
-          <ul class="space-y-2">
-            ${analysis.improvements?.map((i: string) => `<li class="text-sm text-gray-200 flex items-start"><span class="text-red-400 mr-2">•</span><span>${i}</span></li>`).join('') || '<li class="text-sm text-gray-300">Enhancement opportunities identified</li>'}
-          </ul>
-        </div>
-      </div>
-
-      <!-- Professional Feedback -->
-      <div class="bg-blue-500/20 border-2 border-blue-400/30 rounded-xl p-4">
-        <h2 class="text-lg font-semibold text-blue-400 mb-3 flex items-center">
-          <span class="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-          Professional Feedback
-        </h2>
-        <p class="text-sm text-gray-200 leading-relaxed">${analysis.feedback || 'Comprehensive analysis completed with actionable insights.'}</p>
-      </div>
-    </div>`;
+    return [
+      '# CV Analysis Results',
+      '',
+      `**Overall Score:** ${score}/100`,
+      '',
+      '## Key Strengths',
+      ...strengths.map((item) => `• ${item}`),
+      '',
+      '## Areas for Improvement',
+      ...improvements.map((item) => `• ${item}`),
+      '',
+      '## Professional Feedback',
+      feedback,
+    ].join('\n');
   };
 
   // Play audio response
@@ -549,7 +536,7 @@ export default function UnifiedChat() {
     setIsDetecting(true);
 
     try {
-      const response = await fetch('/api/ai-detect', {
+      const response = await csrfFetch('/api/ai-detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: textContent })
@@ -626,7 +613,7 @@ ${result.analysis}`,
       setIsProcessing(true);
 
       // Get AI response
-      const response = await fetch('/api/chat', {
+      const response = await csrfFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -741,8 +728,12 @@ ${result.analysis}`,
         await initializeMediaRecorder();
       }
 
+      const mediaRecorder = mediaRecorderRef.current;
+      if (!mediaRecorder) {
+        throw new Error('Media recorder failed to initialize');
+      }
       audioChunksRef.current = [];
-      mediaRecorderRef.current.start(250);
+      mediaRecorder.start(250);
       setIsRecording(true);
       setupSilenceDetection();
     } catch (error) {
@@ -903,7 +894,7 @@ ${result.analysis}`,
     formData.append('cv', file);
 
     try {
-      const response = await fetch('/api/upload-cv', {
+      const response = await csrfFetch('/api/upload-cv', {
         method: 'POST',
         body: formData
       });
@@ -1099,11 +1090,7 @@ ${result.analysis}`,
               onClick={() => setInteractionMode('mira')}
               variant="ghost"
               size="sm"
-              className={`titillium-web-semibold rounded-full px-6 py-2 ${
-                interactionMode === 'mira' 
-                  ? 'sleek-button-selected' 
-                  : 'sleek-button'
-              }`}
+              className="titillium-web-semibold rounded-full px-6 py-2 sleek-button"
             >
               <Bot className="w-4 h-4 mr-2" />
               MIRA
@@ -1213,27 +1200,7 @@ ${result.analysis}`,
                           }`}
                         >
                           <div className="prose prose-sm prose-invert max-w-none break-words overflow-hidden text-left">
-                            {message.content.includes('<div class="cv-analysis-container') ? (
-                              <div dangerouslySetInnerHTML={{ __html: message.content }} />
-                            ) : message.content.includes('#') ? (
-                              <div dangerouslySetInnerHTML={{ 
-                                __html: message.content
-                                  .replace(/^# (.+)$/gm, '<h1 class="text-lg font-bold mb-3 text-white text-left">$1</h1>')
-                                  .replace(/^## (.+)$/gm, '<h2 class="text-base font-semibold mb-2 text-blue-300 text-left">$1</h2>')
-                                  .replace(/^\*\*(.+?)\*\*/gm, '<strong class="text-blue-300">$1</strong>')
-                                  .replace(/^• (.+)$/gm, '<div class="ml-2 mb-1 text-sm text-left">• $1</div>')
-                                  .replace(/^(\d+)\. (.+)$/gm, '<div class="mb-1 text-sm text-left"><span class="text-blue-300 font-semibold">$1.</span> $2</div>')
-                              }} />
-                            ) : (
-                              <p 
-                                className="m-0 text-sm leading-relaxed whitespace-pre-wrap text-left"
-                                dangerouslySetInnerHTML={{
-                                  __html: message.content
-                                    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-blue-300">$1</strong>')
-                                    .replace(/\n/g, '<br>')
-                                }}
-                              />
-                            )}
+                            <SafeMessageContent content={message.content} />
                           </div>
 
 
@@ -1274,7 +1241,7 @@ ${result.analysis}`,
         {/* Input Area */}
         <div className="space-y-4">
           {/* Voice Controls (for voice modes but not MIRA or AI DETECTOR) */}
-          {interactionMode !== 'text' && interactionMode !== 'mira' && interactionMode !== 'ai-detector' && (
+          {interactionMode !== 'text' && interactionMode !== 'ai-detector' && (
             <div className="flex justify-center">
               <Button
                 {...(interactionMode === 'click-to-talk'
@@ -1456,19 +1423,6 @@ ${result.analysis}`,
         </div>
       </div>
 
-      {/* Mira Phone Mode - full screen mode with video and synchronized audio */}
-      {interactionMode === 'mira' && (
-        <MiraPhoneMode
-          ref={miraRef}
-          isRecording={isRecording}
-          isProcessing={isProcessing}
-          isConnected={isConnected}
-          isMiraActive={isMiraActive}
-          currentTranscription={currentTranscription}
-          onToggleRecording={toggleRecording}
-          onBack={() => setInteractionMode('text')}
-        />
-      )}
       
       {/* MiraAvatar popup for Voice mode only */}
       {interactionMode === 'click-to-talk' && (

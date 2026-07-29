@@ -447,8 +447,12 @@ export default function LiveVoiceChat() {
       }
       
       // Restart recording
+      const mediaRecorder = mediaRecorderRef.current;
+      if (!mediaRecorder) {
+        throw new Error('Media recorder failed to initialize');
+      }
       audioChunksRef.current = [];
-      mediaRecorderRef.current.start(250);
+      mediaRecorder.start(250);
       setIsRecording(true);
       
       // Restart silence detection

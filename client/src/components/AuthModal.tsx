@@ -5,6 +5,7 @@ import { LogIn, Wallet, Twitter } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { SiweMessage } from 'siwe';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -58,7 +59,36 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
       }
 
       const address = accounts[0];
-      const message = `Welcome to AskMira! Please sign this message to authenticate with your wallet.\n\nAddress: ${address}\nTimestamp: ${Date.now()}`;
+      const nonceResponse = await apiRequest('GET', '/auth/wallet/nonce');
+      const nonceBody: unknown = await nonceResponse.json();
+      if (
+        !nonceBody ||
+        typeof nonceBody !== 'object' ||
+        !('nonce' in nonceBody) ||
+        typeof nonceBody.nonce !== 'string'
+      ) {
+        throw new Error('The server returned an invalid wallet challenge');
+      }
+
+      const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
+      const chainId = Number.parseInt(String(chainIdHex), 16);
+      if (!Number.isSafeInteger(chainId) || chainId <= 0) {
+        throw new Error('The wallet returned an invalid chain ID');
+      }
+
+      const issuedAt = new Date();
+      const expirationTime = new Date(issuedAt.getTime() + 5 * 60 * 1000);
+      const message = new SiweMessage({
+        domain: window.location.host,
+        address,
+        statement: 'Sign in to AskMira.',
+        uri: window.location.origin,
+        version: '1',
+        chainId,
+        nonce: nonceBody.nonce,
+        issuedAt: issuedAt.toISOString(),
+        expirationTime: expirationTime.toISOString(),
+      }).prepareMessage();
 
       // Sign message
       const signature = await window.ethereum.request({
@@ -70,7 +100,6 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: AuthModalProps) {
       const response = await apiRequest('POST', '/auth/wallet', {
         message,
         signature,
-        address,
       });
       const result = await response.json();
 

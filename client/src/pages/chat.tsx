@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { csrfFetch, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,7 +36,7 @@ export default function Chat() {
   // Text chat mutation
   const chatMutation = useMutation({
     mutationFn: async (data: { message: string; includeVoice: boolean }) => {
-      const response = await fetch('/api/chat', {
+      const response = await csrfFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -72,7 +72,7 @@ export default function Chat() {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'voice.wav');
       
-      const response = await fetch('/api/voice/chat', {
+      const response = await csrfFetch('/api/voice/chat', {
         method: 'POST',
         body: formData,
       });

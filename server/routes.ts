@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
 import { storage } from "./storage";
@@ -10,6 +11,7 @@ import { elevenLabsService } from "./services/elevenlabs";
 import { mlAiDetectorService } from "./services/mlAiDetector";
 import { insertCvAnalysisSchema, insertChatSessionSchema, insertSessionMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import { apiRateLimiter } from "./security";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -41,6 +43,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup authentication first
   setupAuthRoutes(app);
+  app.use("/api", apiRateLimiter);
+
   // Enhanced health check endpoint
   app.get("/api/health", async (req, res) => {
     try {
@@ -204,15 +208,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Text Detection endpoint (no auth required)
-  app.post("/api/ai-detect", (req, res, next) => {
-    // Skip all middleware for this endpoint
-    req.url = req.originalUrl;
-    next();
-  }, async (req, res) => {
+  app.post("/api/ai-detect", async (req, res) => {
     try {
       console.log('=== AI Detection API Called ===');
       const { text } = req.body;
-      console.log('Request body:', req.body);
       
       if (!text || typeof text !== 'string') {
         return res.status(400).json({ message: "Text is required for AI detection" });
@@ -222,12 +221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Text too short for reliable detection (minimum 10 characters)" });
       }
 
-      console.log(`AI Detection request for text (${text.length} chars):`, text.substring(0, 100) + '...');
+      console.log('AI Detection request received; character count:', text.length);
 
       // Run AI detection
       console.log('About to call mlAiDetectorService.detectAIText...');
       const result = await mlAiDetectorService.detectAIText(text);
-      console.log('ML AI Detection service returned:', result);
+      console.log('ML AI Detection service completed');
 
       res.json({
         probability: result.probability,
@@ -282,7 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Voice session management
   app.post("/api/voice/session", async (req, res) => {
     try {
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const sessionId = `session_${randomUUID()}`;
       
       const session = await storage.createVoiceSession({
         sessionId,
@@ -522,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }>();
 
   wss.on('connection', (ws: WebSocket, req) => {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `session_${randomUUID()}`;
     
     console.log(`Voice chat session started: ${sessionId}`);
     
@@ -620,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             ws.send(JSON.stringify({
               type: 'error',
-              message: `Voice processing failed: ${error.message}`
+              message: 'Voice processing failed'
             }));
           }
         }
@@ -690,9 +689,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
     } catch (error) {
       console.error('❌ Voice processing failed in chained architecture:', error);
-      error.step = error.message.includes('transcribe') ? 'whisper' : 
-                   error.message.includes('chat') ? 'gpt' : 
-                   error.message.includes('speech') ? 'elevenlabs' : 'unknown';
       throw error;
     }
   }
