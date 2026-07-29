@@ -1,3 +1,5 @@
+import { logInfoEvent } from "../security";
+
 const MAX_TEXT_OBJECT_LENGTH = 1024 * 1024;
 const MAX_EXTRACTED_TEXT_LENGTH = 2 * 1024 * 1024;
 
@@ -236,9 +238,10 @@ export class PDFParser {
         .filter((word) => word.length > 2 && /[a-zA-Z]/.test(word));
 
       if (extractedText.length > 50 && words.length > 10) {
-        console.log(
-          `Successfully extracted text: ${extractedText.length} characters, ${words.length} words`,
-        );
+        logInfoEvent("pdf_text_extracted", {
+          characterCount: extractedText.length,
+          wordCount: words.length,
+        });
         return extractedText;
       }
 
@@ -274,9 +277,9 @@ export class PDFParser {
         .trim();
 
       if (uniqueResults.length > 100) {
-        console.log(
-          `Aggressive extraction found content: ${uniqueResults.length} characters`,
-        );
+        logInfoEvent("pdf_fallback_text_extracted", {
+          characterCount: uniqueResults.length,
+        });
         return Promise.resolve(uniqueResults);
       }
 
@@ -475,8 +478,11 @@ CERTIFICATIONS
     // Select profile randomly to provide variety
     const profile = demoProfiles[Math.floor(Math.random() * demoProfiles.length)];
     
-    console.log(`Generated comprehensive demo CV for ${profile.name} (${profile.content.trim().length} characters)`);
-    return profile.content.trim();
+    const content = profile.content.trim();
+    logInfoEvent("pdf_demo_content_generated", {
+      characterCount: content.length,
+    });
+    return content;
   }
 }
 

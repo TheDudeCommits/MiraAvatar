@@ -94,3 +94,16 @@ export function sanitizeForLog(value: unknown, maxLength = 200): string {
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
     .slice(0, maxLength);
 }
+
+type SafeLogMetadata = Record<string, number | boolean | null>;
+
+export function logInfoEvent(
+  event: string,
+  metadata: SafeLogMetadata = {},
+): void {
+  console.log(JSON.stringify({ event, ...metadata }));
+}
+
+export function logErrorEvent(event: string): void {
+  console.error(JSON.stringify({ event }));
+}
