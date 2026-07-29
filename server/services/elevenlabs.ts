@@ -1,32 +1,29 @@
 import fs from "fs";
 import path from "path";
 
+export class ElevenLabsConfigurationError extends Error {
+  constructor() {
+    super("ELEVENLABS_API_KEY is required for speech generation");
+    this.name = "ElevenLabsConfigurationError";
+  }
+}
+
 export class ElevenLabsService {
   private baseUrl = "https://api.elevenlabs.io/v1";
 
-  constructor() {
-    // Constructor is now empty - we'll get the API key dynamically
-  }
-
   private getApiKey(): string {
-    // Use provided API key as fallback if environment variable not available
-    const envKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVENLABS_KEY || "";
-    const providedKey = "REMOVED_FROM_GIT_HISTORY";
-    const key = envKey || providedKey;
-    console.log(`ElevenLabs API key check: ${key ? `Found key starting with ${key.substring(0, 8)}` : 'No key found'}`);
-    return key;
+    const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+    if (!apiKey) {
+      throw new ElevenLabsConfigurationError();
+    }
+    return apiKey;
   }
 
   async generateSpeech(text: string, voiceId: string = "aEO01A4wXwd1O8GPgGlF"): Promise<string> {
     try {
       const apiKey = this.getApiKey();
-      if (!apiKey) {
-        console.log("No ElevenLabs API key provided, using mock audio");
-        console.log("📝 To enable real voice generation, ensure ELEVENLABS_API_KEY is properly set in Account Secrets");
-        return "https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav";
-      }
 
-      console.log(`Generating speech with ElevenLabs using voice ID: ${voiceId} and API key: ${apiKey.substring(0, 8)}...`);
+      console.log("Generating speech with ElevenLabs");
       
       const response = await fetch(`${this.baseUrl}/text-to-speech/${voiceId}`, {
         method: "POST",
@@ -50,8 +47,7 @@ export class ElevenLabsService {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`ElevenLabs API error: ${response.status} - ${errorText}`);
+        console.error(`ElevenLabs API request failed with status ${response.status}`);
         throw new Error(`ElevenLabs API error: ${response.status}`);
       }
 
@@ -78,9 +74,13 @@ export class ElevenLabsService {
       return audioUrl;
       
     } catch (error) {
-      console.error("ElevenLabs TTS error:", error);
-      // Return mock audio URL on error
-      return "https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav";
+      if (error instanceof ElevenLabsConfigurationError) {
+        console.error(error.message);
+        throw error;
+      }
+
+      console.error("ElevenLabs TTS request failed");
+      throw new Error("ElevenLabs speech generation failed");
     }
   }
 }

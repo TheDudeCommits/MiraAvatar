@@ -7,10 +7,7 @@ import path from "path";
 function validateEnvironment() {
   const requiredEnvVars = {
     'OPENAI_API_KEY': process.env.OPENAI_API_KEY,
-    'DATABASE_URL': process.env.DATABASE_URL
-  };
-
-  const optionalEnvVars = {
+    'DATABASE_URL': process.env.DATABASE_URL,
     'ELEVENLABS_API_KEY': process.env.ELEVENLABS_API_KEY
   };
 
@@ -25,18 +22,6 @@ function validateEnvironment() {
   }
 
   console.log('✅ All required environment variables are set');
-  
-  // Check optional variables
-  const missingOptional = Object.entries(optionalEnvVars)
-    .filter(([key, value]) => !value)
-    .map(([key]) => key);
-    
-  if (missingOptional.length > 0) {
-    console.log('⚠️  Optional environment variables missing (will use fallbacks):', missingOptional.join(', '));
-    console.log('📝 Note: ElevenLabs functionality will use mock audio until API key is properly loaded');
-  } else {
-    console.log('✅ ElevenLabs API key is available for voice generation');
-  }
 }
 
 // Set NODE_ENV to production if not already set in production environment
