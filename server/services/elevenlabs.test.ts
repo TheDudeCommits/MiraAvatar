@@ -82,3 +82,115 @@ test("speech generation never logs the configured API key or its prefix", async 
     }
   }
 });
+
+test("speech generation returns bounded MPEG audio without writing a file", async () => {
+  const originalApiKey = process.env.ELEVENLABS_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleLog = console.log;
+  process.env.ELEVENLABS_API_KEY = "test-only-key";
+  console.log = () => {};
+  globalThis.fetch = async () =>
+    new Response(Uint8Array.from([1, 2, 3]), {
+      status: 200,
+      headers: {
+        "content-length": "3",
+        "content-type": "audio/mpeg",
+      },
+    });
+
+  try {
+    const service = new ElevenLabsService();
+    assert.equal(
+      await service.generateSpeech("safe response"),
+      "data:audio/mpeg;base64,AQID",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.log = originalConsoleLog;
+    if (originalApiKey === undefined) {
+      delete process.env.ELEVENLABS_API_KEY;
+    } else {
+      process.env.ELEVENLABS_API_KEY = originalApiKey;
+    }
+  }
+});
+
+test("speech generation rejects provider responses with an unexpected type", async () => {
+  const originalApiKey = process.env.ELEVENLABS_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
+  process.env.ELEVENLABS_API_KEY = "test-only-key";
+  console.error = () => {};
+  globalThis.fetch = async () =>
+    new Response("not audio", {
+      status: 200,
+      headers: { "content-type": "text/plain" },
+    });
+
+  try {
+    const service = new ElevenLabsService();
+    await assert.rejects(
+      service.generateSpeech("unsafe response"),
+      /ElevenLabs speech generation failed/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
+    if (originalApiKey === undefined) {
+      delete process.env.ELEVENLABS_API_KEY;
+    } else {
+      process.env.ELEVENLABS_API_KEY = originalApiKey;
+    }
+  }
+});
+
+test("speech generation cancels a misdeclared response at the streaming limit", async () => {
+  const originalApiKey = process.env.ELEVENLABS_API_KEY;
+  const originalFetch = globalThis.fetch;
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+  let cancelled = false;
+  let chunksProduced = 0;
+
+  process.env.ELEVENLABS_API_KEY = "test-only-key";
+  console.log = () => {};
+  console.error = () => {};
+  globalThis.fetch = async () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        pull(controller) {
+          chunksProduced += 1;
+          controller.enqueue(new Uint8Array(1024 * 1024));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          "content-length": "1",
+          "content-type": "audio/mpeg",
+        },
+      },
+    );
+
+  try {
+    const service = new ElevenLabsService();
+    await assert.rejects(
+      service.generateSpeech("bounded response"),
+      /ElevenLabs speech generation failed/,
+    );
+    assert.equal(cancelled, true);
+    assert.ok(chunksProduced <= 7);
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.log = originalConsoleLog;
+    console.error = originalConsoleError;
+    if (originalApiKey === undefined) {
+      delete process.env.ELEVENLABS_API_KEY;
+    } else {
+      process.env.ELEVENLABS_API_KEY = originalApiKey;
+    }
+  }
+});

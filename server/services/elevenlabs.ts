@@ -1,5 +1,44 @@
-import fs from "fs";
-import path from "path";
+const MAX_AUDIO_RESPONSE_BYTES = 5 * 1024 * 1024;
+const MPEG_CONTENT_TYPE = "audio/mpeg";
+
+async function readBoundedAudio(response: Response): Promise<Buffer> {
+  if (!response.body) {
+    throw new Error("ElevenLabs audio response has no body");
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      totalLength += value.byteLength;
+      if (totalLength > MAX_AUDIO_RESPONSE_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {
+          // The size validation remains authoritative if cancellation fails.
+        }
+        throw new Error("ElevenLabs audio response is too large");
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (totalLength === 0) {
+    throw new Error("ElevenLabs audio response is empty");
+  }
+
+  return Buffer.concat(chunks, totalLength);
+}
 
 export class ElevenLabsConfigurationError extends Error {
   constructor() {
@@ -51,31 +90,34 @@ export class ElevenLabsService {
         throw new Error(`ElevenLabs API error: ${response.status}`);
       }
 
-      // Get the audio data as a buffer
-      const audioBuffer = await response.arrayBuffer();
-      
-      // Create a unique filename
-      const timestamp = Date.now();
-      const filename = `speech_${timestamp}.mp3`;
-      const filepath = path.join(process.cwd(), 'dist', 'public', 'audio', filename);
-      
-      // Ensure the audio directory exists
-      const audioDir = path.dirname(filepath);
-      if (!fs.existsSync(audioDir)) {
-        fs.mkdirSync(audioDir, { recursive: true });
+      const contentType = response.headers
+        .get("content-type")
+        ?.split(";", 1)[0]
+        .trim()
+        .toLowerCase();
+      if (contentType !== MPEG_CONTENT_TYPE) {
+        throw new Error("ElevenLabs returned an unexpected content type");
       }
-      
-      // Save the audio file
-      fs.writeFileSync(filepath, Buffer.from(audioBuffer));
-      
-      // Return the public URL
-      const audioUrl = `/audio/${filename}`;
-      console.log(`Speech generated successfully: ${audioUrl}`);
+
+      const declaredLength = Number(response.headers.get("content-length"));
+      if (
+        Number.isFinite(declaredLength) &&
+        declaredLength > MAX_AUDIO_RESPONSE_BYTES
+      ) {
+        throw new Error("ElevenLabs audio response is too large");
+      }
+
+      const audioBuffer = await readBoundedAudio(response);
+
+      // Keep provider-controlled bytes out of the local file system. Browsers can
+      // play this bounded, explicitly typed data URL anywhere an audio URL is used.
+      const audioUrl = `data:${MPEG_CONTENT_TYPE};base64,${audioBuffer.toString("base64")}`;
+      console.log("Speech generated successfully");
       return audioUrl;
       
     } catch (error) {
       if (error instanceof ElevenLabsConfigurationError) {
-        console.error(error.message);
+        console.error("ElevenLabs API key is not configured");
         throw error;
       }
 
