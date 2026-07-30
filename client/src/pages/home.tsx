@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { csrfFetch, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import ProcessSteps from "@/components/process-steps";
 import UploadSection from "@/components/upload-section";
@@ -21,7 +21,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('cv', file);
       
-      const response = await fetch('/api/cv/upload', {
+      const response = await csrfFetch('/api/cv/upload', {
         method: 'POST',
         body: formData,
       });
@@ -52,7 +52,7 @@ export default function Home() {
   });
 
   // Analysis query - More robust polling with error handling
-  const { data: analysis, error: analysisError, isLoading } = useQuery({
+  const { data: analysis, error: analysisError, isLoading } = useQuery<CvAnalysis>({
     queryKey: ['/api/cv/analysis', analysisId],
     enabled: !!analysisId,
     refetchInterval: (queryData) => {
@@ -74,7 +74,7 @@ export default function Home() {
       console.log('Query retry attempt:', failureCount, error);
       return failureCount < 3;
     }
-  }) as { data: CvAnalysis | undefined; error: any; isLoading: boolean };
+  });
 
   const handleFileUpload = (file: File) => {
     uploadMutation.mutate(file);

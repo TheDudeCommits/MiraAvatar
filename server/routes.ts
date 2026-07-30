@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomUUID } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
 import { storage } from "./storage";
@@ -10,6 +11,7 @@ import { elevenLabsService } from "./services/elevenlabs";
 import { mlAiDetectorService } from "./services/mlAiDetector";
 import { insertCvAnalysisSchema, insertChatSessionSchema, insertSessionMessageSchema } from "@shared/schema";
 import { z } from "zod";
+import { apiRateLimiter, logErrorEvent, logInfoEvent } from "./security";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -41,6 +43,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Setup authentication first
   setupAuthRoutes(app);
+  app.use("/api", apiRateLimiter);
+
   // Enhanced health check endpoint
   app.get("/api/health", async (req, res) => {
     try {
@@ -62,8 +66,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         await storage.healthCheck();
         healthStatus.services.database = true;
-      } catch (error) {
-        console.error('Database health check failed:', error);
+      } catch {
+        logErrorEvent("database_health_check_failed");
         healthStatus.services.database = false;
       }
 
@@ -78,8 +82,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Some services are not available"
         });
       }
-    } catch (error) {
-      console.error('Health check error:', error);
+    } catch {
+      logErrorEvent("health_check_failed");
       res.status(500).json({
         status: "error",
         timestamp: new Date().toISOString(),
@@ -113,8 +117,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "CV uploaded successfully. Analysis in progress." 
       });
 
-    } catch (error) {
-      console.error("Upload error:", error);
+    } catch {
+      logErrorEvent("cv_upload_failed");
       res.status(500).json({ message: "Failed to process CV upload" });
     }
   });
@@ -129,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Analysis not found" });
       }
 
-      console.log(`Returning analysis ${id} with status: ${analysis.status}`);
+      logInfoEvent("cv_analysis_returned", { analysisId: id });
       
       // Create a response object with important fields first and truncated text
       const response = {
@@ -143,10 +147,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         extractedText: analysis.extractedText.substring(0, 1000) + (analysis.extractedText.length > 1000 ? '...' : '')
       };
       
-      console.log('Sending response with status:', response.status);
+      logInfoEvent("cv_analysis_response_sent", { analysisId: id });
       res.json(response);
-    } catch (error) {
-      console.error("Get analysis error:", error);
+    } catch {
+      logErrorEvent("cv_analysis_lookup_failed");
       res.status(500).json({ message: "Failed to get analysis" });
     }
   });
@@ -185,8 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: includeVoice ? "voice" : "text"
       });
 
-    } catch (error) {
-      console.error("Chat error:", error);
+    } catch {
+      logErrorEvent("chat_request_failed");
       res.status(500).json({ message: "Failed to process chat message" });
     }
   });
@@ -197,22 +201,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 20;
       const messages = await storage.getChatMessages(limit);
       res.json(messages.reverse()); // Return in chronological order
-    } catch (error) {
-      console.error("Chat history error:", error);
+    } catch {
+      logErrorEvent("chat_history_lookup_failed");
       res.status(500).json({ message: "Failed to get chat history" });
     }
   });
 
   // AI Text Detection endpoint (no auth required)
-  app.post("/api/ai-detect", (req, res, next) => {
-    // Skip all middleware for this endpoint
-    req.url = req.originalUrl;
-    next();
-  }, async (req, res) => {
+  app.post("/api/ai-detect", async (req, res) => {
     try {
       console.log('=== AI Detection API Called ===');
       const { text } = req.body;
-      console.log('Request body:', req.body);
       
       if (!text || typeof text !== 'string') {
         return res.status(400).json({ message: "Text is required for AI detection" });
@@ -222,12 +221,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Text too short for reliable detection (minimum 10 characters)" });
       }
 
-      console.log(`AI Detection request for text (${text.length} chars):`, text.substring(0, 100) + '...');
+      logInfoEvent("ai_detection_requested", { characterCount: text.length });
 
       // Run AI detection
       console.log('About to call mlAiDetectorService.detectAIText...');
       const result = await mlAiDetectorService.detectAIText(text);
-      console.log('ML AI Detection service returned:', result);
+      console.log('ML AI Detection service completed');
 
       res.json({
         probability: result.probability,
@@ -237,9 +236,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         textLength: text.length
       });
 
-    } catch (error) {
-      console.error("AI Detection error in route:", error);
-      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    } catch {
+      logErrorEvent("ai_detection_failed");
       res.status(500).json({ message: "Failed to analyze text for AI detection" });
     }
   });
@@ -273,8 +271,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "voice"
       });
 
-    } catch (error) {
-      console.error("Voice chat error:", error);
+    } catch {
+      logErrorEvent("voice_chat_failed");
       res.status(500).json({ message: "Failed to process voice input" });
     }
   });
@@ -282,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Voice session management
   app.post("/api/voice/session", async (req, res) => {
     try {
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const sessionId = `session_${randomUUID()}`;
       
       const session = await storage.createVoiceSession({
         sessionId,
@@ -294,8 +292,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: session.status
       });
 
-    } catch (error) {
-      console.error("Voice session error:", error);
+    } catch {
+      logErrorEvent("voice_session_creation_failed");
       res.status(500).json({ message: "Failed to create voice session" });
     }
   });
@@ -319,8 +317,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: session.status
       });
 
-    } catch (error) {
-      console.error("Voice session update error:", error);
+    } catch {
+      logErrorEvent("voice_session_update_failed");
       res.status(500).json({ message: "Failed to update voice session" });
     }
   });
@@ -338,8 +336,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const session = await storage.createChatSession({ title });
       res.json(session);
-    } catch (error) {
-      console.error("Create session error:", error);
+    } catch {
+      logErrorEvent("chat_session_creation_failed");
       res.status(500).json({ message: "Failed to create chat session" });
     }
   });
@@ -351,8 +349,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.isAuthenticated() ? (req.user as any)?.id : null;
       const sessions = await storage.getChatSessions(limit, userId);
       res.json(sessions);
-    } catch (error) {
-      console.error("Get sessions error:", error);
+    } catch {
+      logErrorEvent("chat_session_list_failed");
       res.status(500).json({ message: "Failed to get chat sessions" });
     }
   });
@@ -368,8 +366,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(session);
-    } catch (error) {
-      console.error("Get session error:", error);
+    } catch {
+      logErrorEvent("chat_session_lookup_failed");
       res.status(500).json({ message: "Failed to get chat session" });
     }
   });
@@ -387,8 +385,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(session);
-    } catch (error) {
-      console.error("Update session error:", error);
+    } catch {
+      logErrorEvent("chat_session_update_failed");
       res.status(500).json({ message: "Failed to update chat session" });
     }
   });
@@ -404,8 +402,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ message: "Session deleted successfully" });
-    } catch (error) {
-      console.error("Delete session error:", error);
+    } catch {
+      logErrorEvent("chat_session_delete_failed");
       res.status(500).json({ message: "Failed to delete chat session" });
     }
   });
@@ -416,8 +414,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = parseInt(req.params.id);
       await storage.setActiveSession(sessionId);
       res.json({ message: "Session activated successfully" });
-    } catch (error) {
-      console.error("Activate session error:", error);
+    } catch {
+      logErrorEvent("chat_session_activation_failed");
       res.status(500).json({ message: "Failed to activate session" });
     }
   });
@@ -432,8 +430,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const messages = await storage.getSessionMessages(sessionId, limit);
       res.json(messages);
-    } catch (error) {
-      console.error("Get session messages error:", error);
+    } catch {
+      logErrorEvent("chat_session_messages_lookup_failed");
       res.status(500).json({ message: "Failed to get session messages" });
     }
   });
@@ -458,8 +456,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(message);
-    } catch (error) {
-      console.error("Create session message error:", error);
+    } catch {
+      logErrorEvent("chat_session_message_creation_failed");
       res.status(500).json({ message: "Failed to create session message" });
     }
   });
@@ -467,24 +465,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Background processing function
   async function processAnalysis(id: number) {
     try {
-      console.log(`Starting background processing for analysis ${id}`);
+      logInfoEvent("cv_analysis_processing_started", { analysisId: id });
       const analysis = await storage.getCvAnalysis(id);
       if (!analysis) {
-        console.error(`Analysis ${id} not found`);
+        logErrorEvent("cv_analysis_not_found");
         return;
       }
 
-      console.log(`Processing CV with ${analysis.extractedText.length} characters`);
+      logInfoEvent("cv_analysis_text_loaded", {
+        analysisId: id,
+        characterCount: analysis.extractedText.length,
+      });
 
       // Optimize processing: just do OpenAI analysis first, then speech
       console.log("Starting optimized CV analysis...");
       
       const aiAnalysis = await openaiService.analyzeCv(analysis.extractedText);
-      console.log("OpenAI analysis completed:", aiAnalysis);
+      logInfoEvent("openai_cv_analysis_completed", { analysisId: id });
       
       // Generate speech with the feedback (faster single step)
       const finalAudioUrl = await elevenLabsService.generateSpeech(aiAnalysis.feedback);
-      console.log(`Speech generated: ${finalAudioUrl}`);
+      logInfoEvent("cv_analysis_speech_generated", { analysisId: id });
       
       // Update analysis with results
       console.log("Updating analysis with results...");
@@ -493,12 +494,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioUrl: finalAudioUrl,
         status: "completed"
       });
-      console.log(`Analysis ${id} completed successfully`);
+      logInfoEvent("cv_analysis_processing_completed", { analysisId: id });
 
-    } catch (error) {
-      console.error("Analysis processing error:", error);
-      console.error("Error details:", (error as Error).message);
-      console.error("Stack trace:", (error as Error).stack);
+    } catch {
+      logErrorEvent("cv_analysis_processing_failed");
       await storage.updateCvAnalysis(id, {
         status: "failed"
       });
@@ -522,9 +521,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }>();
 
   wss.on('connection', (ws: WebSocket, req) => {
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `session_${randomUUID()}`;
     
-    console.log(`Voice chat session started: ${sessionId}`);
+    logInfoEvent("voice_chat_session_started");
     
     // Initialize session
     voiceSessions.set(sessionId, {
@@ -554,7 +553,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Mark as processing
           session.isProcessing = true;
           
-          console.log('🎤 Received voice data for chained processing, size:', message.audioData?.length || 0);
+          const encodedAudioLength =
+            typeof message.audioData === "string" ? message.audioData.length : 0;
+          logInfoEvent("voice_data_received", {
+            encodedCharacterCount: encodedAudioLength,
+          });
           
           ws.send(JSON.stringify({
             type: 'processing',
@@ -565,7 +568,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             // Convert base64 audio to buffer
             const audioBuffer = Buffer.from(message.audioData, 'base64');
-            console.log('Created audio buffer:', audioBuffer.length, 'bytes');
+            logInfoEvent("voice_audio_buffer_created", {
+              byteCount: audioBuffer.length,
+            });
             
             // Send step-by-step updates to user
             ws.send(JSON.stringify({
@@ -576,7 +581,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Process voice input with conversation context using chained architecture
             const result = await processVoiceWithContext(audioBuffer, session.conversationHistory);
-            console.log('Chained processing result:', { text: result.text, responseLength: result.response.length });
+            logInfoEvent("voice_processing_completed", {
+              transcriptionCharacterCount: result.text.length,
+              responseCharacterCount: result.response.length,
+            });
             
             // Send transcription immediately for faster feedback
             ws.send(JSON.stringify({
@@ -614,13 +622,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }));
 
             session.isProcessing = false;
-          } catch (error) {
-            console.error('Voice processing error in WebSocket:', error);
+          } catch {
+            logErrorEvent("websocket_voice_processing_failed");
             session.isProcessing = false;
             
             ws.send(JSON.stringify({
               type: 'error',
-              message: `Voice processing failed: ${error.message}`
+              message: 'Voice processing failed'
             }));
           }
         }
@@ -629,8 +637,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ws.send(JSON.stringify({ type: 'pong' }));
         }
 
-      } catch (error) {
-        console.error('WebSocket message error:', error);
+      } catch {
+        logErrorEvent("websocket_message_failed");
         const session = voiceSessions.get(sessionId);
         if (session) {
           session.isProcessing = false;
@@ -644,12 +652,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     ws.on('close', () => {
-      console.log(`Voice chat session ended: ${sessionId}`);
+      logInfoEvent("voice_chat_session_ended");
       voiceSessions.delete(sessionId);
     });
 
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+    ws.on('error', () => {
+      logErrorEvent("websocket_connection_failed");
       voiceSessions.delete(sessionId);
     });
   });
@@ -661,25 +669,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   ): Promise<{ text: string; response: string; audioUrl: string }> {
     try {
       console.log('🎤 CHAINED ARCHITECTURE - Step 1: OpenAI Whisper (Speech-to-Text)');
-      console.log('Audio buffer size:', audioData.length, 'bytes');
+      logInfoEvent("voice_audio_processing_started", {
+        byteCount: audioData.length,
+      });
       
       // STEP 1: OpenAI Whisper - Convert speech to text
       const transcription = await openaiService.transcribeAudio(audioData);
       const userText = transcription.text;
-      console.log('✅ Transcription complete:', userText);
+      logInfoEvent("voice_transcription_completed", {
+        characterCount: userText.length,
+      });
       
       console.log('🤖 CHAINED ARCHITECTURE - Step 2: OpenAI GPT (Text Processing)');
-      console.log('Conversation history length:', conversationHistory.length, 'messages');
+      logInfoEvent("voice_context_loaded", {
+        messageCount: conversationHistory.length,
+      });
       
       // STEP 2: OpenAI GPT - Process text and generate response  
       const aiResponse = await openaiService.chatWithContext(userText, conversationHistory);
-      console.log('✅ AI response generated:', aiResponse.substring(0, 100) + '...');
+      logInfoEvent("voice_ai_response_generated", {
+        characterCount: aiResponse.length,
+      });
       
       console.log('🎵 CHAINED ARCHITECTURE - Step 3: ElevenLabs (Text-to-Speech)');
       
       // STEP 3: ElevenLabs - Convert text response to speech
       const audioUrl = await elevenLabsService.generateSpeech(aiResponse);
-      console.log('✅ Audio synthesis complete:', audioUrl);
+      logInfoEvent("voice_audio_synthesis_completed");
       
       console.log('🎯 CHAINED PROCESSING COMPLETE - All 3 steps successful!');
       
@@ -689,10 +705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audioUrl
       };
     } catch (error) {
-      console.error('❌ Voice processing failed in chained architecture:', error);
-      error.step = error.message.includes('transcribe') ? 'whisper' : 
-                   error.message.includes('chat') ? 'gpt' : 
-                   error.message.includes('speech') ? 'elevenlabs' : 'unknown';
+      logErrorEvent("voice_processing_pipeline_failed");
       throw error;
     }
   }

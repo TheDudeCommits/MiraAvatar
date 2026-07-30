@@ -4,6 +4,10 @@
 
 This is a full-stack web application that creates an AI-powered avatar chatbot for CV analysis. Users can upload PDF CVs, and the system provides personalized feedback through an animated avatar that speaks using text-to-speech technology. The application combines modern web technologies with AI services to deliver an interactive career coaching experience.
 
+## Environment Configuration
+
+Copy `.env.example` to an ignored local `.env` file and replace every placeholder through your local or deployment secret manager. `DATABASE_URL`, `OPENAI_API_KEY`, and `ELEVENLABS_API_KEY` are required when the server starts. `.env.production.example` contains non-secret process defaults only; production credentials must be injected by the deployment environment.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

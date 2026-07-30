@@ -1,11 +1,80 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as TwitterStrategy } from 'passport-twitter';
 import session from 'express-session';
-import type { Express, RequestHandler } from 'express';
+import type { Express, Request, RequestHandler } from 'express';
 import { storage } from './storage';
-import { verifyMessage } from 'ethers';
 import connectPg from 'connect-pg-simple';
+import { randomBytes } from 'node:crypto';
+import { generateNonce } from 'siwe';
+import {
+  authRateLimiter,
+  csrfProtection,
+  issueCsrfToken,
+} from './security';
+import {
+  parseWalletAuthPayload,
+  verifyWalletAuthentication,
+} from './services/wallet-auth';
+import { HardenedTwitterStrategy } from './services/twitter-strategy';
+
+function getSessionSecret(): string {
+  const configuredSecret = process.env.SESSION_SECRET;
+  if (configuredSecret) {
+    return configuredSecret;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET is required in production');
+  }
+
+  return randomBytes(32).toString('hex');
+}
+
+function getExpectedSiweDomain(req: Request): string {
+  const configuredOrigin = process.env.PUBLIC_APP_URL ?? process.env.APP_URL;
+  if (configuredOrigin) {
+    const origin = new URL(configuredOrigin);
+    if (!['http:', 'https:'].includes(origin.protocol)) {
+      throw new Error('The configured application URL must use HTTP or HTTPS');
+    }
+    return origin.host;
+  }
+
+  const requestHost = req.get('host');
+  if (!requestHost || requestHost.length > 255) {
+    throw new Error('Unable to determine the application domain');
+  }
+
+  const parsedHost = new URL(`http://${requestHost}`);
+  if (parsedHost.host !== requestHost) {
+    throw new Error('Invalid application domain');
+  }
+  return parsedHost.host;
+}
+
+function regenerateSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+function logIn(req: Request, user: Express.User): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.login(user, (error) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 // Configure session middleware
 export function getSessionMiddleware() {
@@ -19,13 +88,15 @@ export function getSessionMiddleware() {
   });
 
   return session({
-    secret: process.env.SESSION_SECRET || 'dev-secret-mira-chat-session-2025',
+    secret: getSessionSecret(),
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    proxy: process.env.NODE_ENV === 'production',
     cookie: {
       httpOnly: true,
-      secure: false, // Set to false for development
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -38,7 +109,8 @@ export function configurePassport() {
     passport.use(new GoogleStrategy({
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback"
+      callbackURL: "/auth/google/callback",
+      state: true,
     }, async (accessToken, refreshToken, profile, done) => {
       try {
         let user = await storage.findUserByAccount('google', profile.id);
@@ -78,7 +150,7 @@ export function configurePassport() {
 
   // Twitter OAuth Strategy
   if (process.env.TWITTER_CONSUMER_KEY && process.env.TWITTER_CONSUMER_SECRET) {
-    passport.use(new TwitterStrategy({
+    passport.use(new HardenedTwitterStrategy({
       consumerKey: process.env.TWITTER_CONSUMER_KEY,
       consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
       callbackURL: "/auth/twitter/callback"
@@ -148,6 +220,11 @@ export function setupAuthRoutes(app: Express) {
   app.use(passport.session());
   
   configurePassport();
+  app.use('/auth', authRateLimiter);
+
+  // Bootstrap the synchronizer token before enforcing it on unsafe requests.
+  app.get('/auth/csrf-token', issueCsrfToken);
+  app.use(csrfProtection);
 
   // Google OAuth routes
   app.get('/auth/google', 
@@ -155,7 +232,9 @@ export function setupAuthRoutes(app: Express) {
   );
   
   app.get('/auth/google/callback', 
-    passport.authenticate('google', { failureRedirect: '/?error=google_auth_failed' }),
+    passport.authenticate('google', {
+      failureRedirect: '/?error=google_auth_failed',
+    }),
     (req, res) => {
       res.redirect('/');
     }
@@ -174,22 +253,42 @@ export function setupAuthRoutes(app: Express) {
   );
 
   // Wallet Connect authentication
+  app.get('/auth/wallet/nonce', (req, res) => {
+    const nonce = generateNonce();
+    req.session.walletNonce = nonce;
+    res.set('Cache-Control', 'no-store');
+    res.json({ nonce });
+  });
+
   app.post('/auth/wallet', async (req, res) => {
+    let payload;
     try {
-      const { message, signature, address } = req.body;
-      
-      if (!message || !signature || !address) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
+      payload = parseWalletAuthPayload(req.body);
+    } catch {
+      return res.status(400).json({ error: 'Invalid wallet authentication payload' });
+    }
 
-      // Verify the signature
-      const recoveredAddress = verifyMessage(message, signature);
-      if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-        return res.status(400).json({ error: 'Invalid signature' });
-      }
+    const expectedNonce = req.session.walletNonce;
+    delete req.session.walletNonce;
+    if (!expectedNonce) {
+      return res.status(400).json({ error: 'Request a new wallet challenge' });
+    }
 
+    let address: string;
+    try {
+      address = await verifyWalletAuthentication(
+        payload,
+        expectedNonce,
+        getExpectedSiweDomain(req),
+      );
+    } catch {
+      return res.status(401).json({ error: 'Wallet authentication failed' });
+    }
+
+    try {
+      const accountId = address.toLowerCase();
       // Find or create user
-      let user = await storage.findUserByAccount('wallet', address);
+      let user = await storage.findUserByAccount('wallet', accountId);
       
       if (!user) {
         // Create new user
@@ -202,7 +301,7 @@ export function setupAuthRoutes(app: Express) {
         await storage.createUserAccount({
           userId: user.id,
           provider: 'wallet',
-          providerAccountId: address,
+          providerAccountId: accountId,
           walletAddress: address,
           metadata: {
             walletType: 'ethereum'
@@ -210,16 +309,12 @@ export function setupAuthRoutes(app: Express) {
         });
       }
 
-      // Log the user in
-      req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ error: 'Login failed' });
-        }
-        res.json({ success: true, user });
-      });
-
-    } catch (error) {
-      console.error('Wallet authentication error:', error);
+      // Rotate the session identifier before establishing authenticated state.
+      await regenerateSession(req);
+      await logIn(req, user);
+      res.json({ success: true, user });
+    } catch {
+      console.error('Wallet authentication failed during account setup');
       res.status(500).json({ error: 'Authentication failed' });
     }
   });
@@ -230,7 +325,13 @@ export function setupAuthRoutes(app: Express) {
       if (err) {
         return res.status(500).json({ error: 'Logout failed' });
       }
-      res.json({ success: true });
+      req.session.destroy((destroyError) => {
+        if (destroyError) {
+          return res.status(500).json({ error: 'Logout failed' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ success: true });
+      });
     });
   });
 

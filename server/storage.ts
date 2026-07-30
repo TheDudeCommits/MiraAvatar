@@ -22,7 +22,7 @@ import {
   type InsertSessionMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -213,7 +213,7 @@ export class DatabaseStorage implements IStorage {
       query.where(eq(chatSessions.userId, userId));
     } else {
       // If no userId, show sessions without a user (anonymous sessions)
-      query.where(eq(chatSessions.userId, null));
+      query.where(isNull(chatSessions.userId));
     }
     
     return await query;

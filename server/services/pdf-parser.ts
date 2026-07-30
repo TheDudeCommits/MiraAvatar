@@ -1,162 +1,292 @@
+import { logInfoEvent } from "../security";
+
+const MAX_TEXT_OBJECT_LENGTH = 1024 * 1024;
+const MAX_EXTRACTED_TEXT_LENGTH = 2 * 1024 * 1024;
+
+function isPdfTokenBoundary(character: string | undefined): boolean {
+  return (
+    character === undefined ||
+    /\s/.test(character) ||
+    "()<>[]{}/%".includes(character)
+  );
+}
+
+function findPdfToken(source: string, token: string, fromIndex: number): number {
+  let index = source.indexOf(token, fromIndex);
+  while (index !== -1) {
+    if (
+      isPdfTokenBoundary(source[index - 1]) &&
+      isPdfTokenBoundary(source[index + token.length])
+    ) {
+      return index;
+    }
+    index = source.indexOf(token, index + token.length);
+  }
+  return -1;
+}
+
+export function decodePdfLiteral(value: string): string {
+  let decoded = "";
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character !== "\\") {
+      decoded += character;
+      continue;
+    }
+
+    const escaped = value[index + 1];
+    if (escaped === undefined) {
+      decoded += "\\";
+      continue;
+    }
+
+    if (escaped === "\n") {
+      index += 1;
+      continue;
+    }
+    if (escaped === "\r") {
+      index += value[index + 2] === "\n" ? 2 : 1;
+      continue;
+    }
+
+    const escapeCharacters: Record<string, string> = {
+      n: " ",
+      r: " ",
+      t: " ",
+      b: "\b",
+      f: "\f",
+      "(": "(",
+      ")": ")",
+      "\\": "\\",
+      "'": "'",
+      '"': '"',
+    };
+    if (escaped in escapeCharacters) {
+      decoded += escapeCharacters[escaped];
+      index += 1;
+      continue;
+    }
+
+    if (escaped >= "0" && escaped <= "7") {
+      let octal = escaped;
+      let offset = 2;
+      while (
+        offset <= 3 &&
+        value[index + offset] >= "0" &&
+        value[index + offset] <= "7"
+      ) {
+        octal += value[index + offset];
+        offset += 1;
+      }
+      decoded += String.fromCharCode(Number.parseInt(octal, 8));
+      index += octal.length;
+      continue;
+    }
+
+    decoded += escaped;
+    index += 1;
+  }
+
+  return decoded;
+}
+
+interface PdfLiteral {
+  endIndex: number;
+  rawValue: string;
+  terminated: boolean;
+}
+
+function readPdfLiteral(source: string, startIndex: number): PdfLiteral {
+  let depth = 1;
+  let rawValue = "";
+
+  for (let index = startIndex + 1; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "\\") {
+      rawValue += character;
+      if (source[index + 1] !== undefined) {
+        rawValue += source[index + 1];
+        index += 1;
+      }
+      continue;
+    }
+    if (character === "(") {
+      depth += 1;
+      rawValue += character;
+      continue;
+    }
+    if (character === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return { endIndex: index + 1, rawValue, terminated: true };
+      }
+      rawValue += character;
+      continue;
+    }
+    rawValue += character;
+  }
+
+  return { endIndex: source.length, rawValue, terminated: false };
+}
+
+export function extractPdfLiteralText(source: string): string {
+  const extracted: string[] = [];
+  let totalLength = 0;
+  let cursor = 0;
+
+  while (cursor < source.length && totalLength < MAX_EXTRACTED_TEXT_LENGTH) {
+    const textStart = findPdfToken(source, "BT", cursor);
+    if (textStart === -1) {
+      break;
+    }
+
+    const textEnd = findPdfToken(source, "ET", textStart + 2);
+    if (textEnd === -1) {
+      break;
+    }
+
+    if (textEnd - textStart <= MAX_TEXT_OBJECT_LENGTH) {
+      const textObject = source.slice(textStart + 2, textEnd);
+      let objectCursor = 0;
+      while (
+        objectCursor < textObject.length &&
+        totalLength < MAX_EXTRACTED_TEXT_LENGTH
+      ) {
+        const literalStart = textObject.indexOf("(", objectCursor);
+        if (literalStart === -1) {
+          break;
+        }
+
+        const literal = readPdfLiteral(textObject, literalStart);
+        objectCursor = literal.endIndex;
+        if (!literal.terminated) {
+          break;
+        }
+
+        const value = decodePdfLiteral(literal.rawValue);
+        if (value.length > 1) {
+          const remaining = MAX_EXTRACTED_TEXT_LENGTH - totalLength;
+          const boundedValue = value.slice(0, remaining);
+          extracted.push(boundedValue);
+          totalLength += boundedValue.length;
+        }
+      }
+    }
+
+    cursor = textEnd + 2;
+  }
+
+  return extracted.join(" ");
+}
+
+const FALLBACK_PATTERNS = [
+  /[A-Z][a-z]{1,30}\s+[A-Z][a-z]{1,30}/g,
+  /[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63}){1,4}/g,
+  /\b\d{4}\s{0,4}-\s{0,4}\d{4}\b/g,
+  /\b[A-Z][a-z]{1,30}(?:\s+[A-Z][a-z]{1,30}){0,6}\s+(?:University|College|School|Institute)\b/g,
+  /\b(?:Experience|Education|Skills|Projects|Achievements|Certifications?)\b/gi,
+  /\b[A-Z][a-zA-Z\s&,.]{10,50}\b/g,
+];
+
+const AGGRESSIVE_PATTERNS = [
+  /[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9-]{1,63}(?:\.[a-zA-Z0-9-]{1,63}){1,4}/g,
+  /[+]?[0-9\s()\-]{10,32}/g,
+  /\b[A-Z][a-z]{2,30}(?:\s+[A-Z][a-z]{2,30}){1,5}\b/g,
+  /\b(?:19|20)\d{2}(?:\s{0,4}[-–]\s{0,4}(?:19|20)\d{2})?\b/g,
+  /\b(?:EXPERIENCE|EDUCATION|SKILLS|PROJECTS|SUMMARY|PROFILE|CERTIFICATIONS?|ACHIEVEMENTS?|CONTACT)\b/gi,
+  /\b[A-Z][a-zA-Z\s&]{5,50}(?:University|College|School|Institute|Corporation|Company|Inc|Ltd|LLC)\b/gi,
+  /\b(?:Senior|Junior|Lead|Principal|Manager|Director|Engineer|Developer|Analyst|Specialist|Coordinator|Assistant)\s+[A-Z][a-zA-Z\s]{2,30}\b/g,
+  /\b(?:JavaScript|Python|Java|React|Node\.js|SQL|HTML|CSS|AWS|Docker|Git|Linux|Windows|Microsoft|Adobe|Photoshop|Excel|PowerPoint)\b/gi,
+  /\b[A-Z][a-zA-Z\s,.]{15,100}\b/g,
+];
+
 export class PDFParser {
   async extractText(buffer: Buffer): Promise<string> {
     try {
       console.log("Extracting text from PDF buffer...");
-      
-      // Enhanced PDF text extraction using multiple methods
-      const text = buffer.toString('binary');
-      
-      if (!text.startsWith('%PDF')) {
+      const text = buffer.toString("latin1");
+
+      if (!text.startsWith("%PDF")) {
         throw new Error("Invalid PDF format - missing PDF header");
       }
 
       console.log("Valid PDF detected, attempting comprehensive text extraction...");
-      
-      let extractedText = '';
-      
-      // Method 1: Extract from text objects with improved patterns
-      const textObjectPattern = /BT\s+(.*?)\s+ET/gs;
-      const textObjects = text.match(textObjectPattern);
-      
-      if (textObjects) {
-        for (const obj of textObjects) {
-          // Extract text from various PDF text commands
-          const tjPatterns = [
-            /\((.*?)\)\s*Tj/g,           // Simple text show
-            /\[(.*?)\]\s*TJ/g,          // Array text show
-            /\((.*?)\)\s*'/g,           // Text with positioning
-            /\((.*?)\)\s*"/g            // Text with word spacing
-          ];
-          
-          for (const pattern of tjPatterns) {
-            let match;
-            while ((match = pattern.exec(obj)) !== null) {
-              const textContent = match[1];
-              if (textContent && textContent.length > 1) {
-                // Decode common PDF escape sequences
-                const decodedText = textContent
-                  .replace(/\\n/g, ' ')
-                  .replace(/\\r/g, ' ')
-                  .replace(/\\t/g, ' ')
-                  .replace(/\\\\/g, '\\')
-                  .replace(/\\'/g, "'")
-                  .replace(/\\"/g, '"');
-                
-                extractedText += decodedText + ' ';
-              }
-            }
-          }
-        }
-      }
-      
-      // Method 2: Look for readable text patterns throughout the PDF
+      let extractedText = extractPdfLiteralText(text);
+
       if (extractedText.length < 200) {
         console.log("Primary extraction yielded little content, trying pattern matching...");
-        
-        // More sophisticated pattern matching for common CV content
-        const patterns = [
-          /[A-Z][a-z]+\s+[A-Z][a-z]+/g,                    // Names
-          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, // Emails
-          /\b\d{4}\s*-\s*\d{4}\b/g,                        // Date ranges
-          /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:\s+(?:University|College|School|Institute))/g, // Education
-          /\b(?:Experience|Education|Skills|Projects|Achievements|Certifications?)\b/gi, // Section headers
-          /\b[A-Z][a-zA-Z\s&,.]{10,50}\b/g                 // Company/position names
-        ];
-        
-        for (const pattern of patterns) {
+        for (const pattern of FALLBACK_PATTERNS) {
           const matches = text.match(pattern);
           if (matches) {
-            extractedText += matches.join(' ') + ' ';
+            extractedText += `${matches.join(" ")} `;
           }
         }
       }
 
-      // Clean and validate extracted text
       extractedText = extractedText
-        .replace(/\s+/g, ' ')
-        .replace(/[^\x20-\x7E\n]/g, ' ')
-        .trim();
-      
-      // Remove PDF-specific garbage
-      extractedText = extractedText.replace(/\b(obj|endobj|stream|endstream|xref|StructParent|QuadPoints|FlateDecode|Transparency|CreationDate|EmbeddedFiles|cairographics|attachment\.xml)\b/gi, '');
-      
-      const words = extractedText.split(/\s+/).filter(word => 
-        word.length > 2 && 
-        word.match(/[a-zA-Z]/)
-      );
-      
+        .replace(/\s+/g, " ")
+        .replace(/[^\x20-\x7E\n]/g, " ")
+        .trim()
+        .replace(
+          /\b(?:obj|endobj|stream|endstream|xref|StructParent|QuadPoints|FlateDecode|Transparency|CreationDate|EmbeddedFiles|cairographics|attachment\.xml)\b/gi,
+          "",
+        );
+
+      const words = extractedText
+        .split(/\s+/)
+        .filter((word) => word.length > 2 && /[a-zA-Z]/.test(word));
+
       if (extractedText.length > 50 && words.length > 10) {
-        console.log(`Successfully extracted text: ${extractedText.length} characters, ${words.length} words`);
-        console.log("Sample:", extractedText.substring(0, 150) + "...");
+        logInfoEvent("pdf_text_extracted", {
+          characterCount: extractedText.length,
+          wordCount: words.length,
+        });
         return extractedText;
       }
-      
+
       console.log("Standard extraction failed, trying aggressive fallback...");
       return this.aggressiveExtraction(buffer);
-      
-    } catch (error) {
-      console.error("PDF parsing error:", error);
+    } catch {
+      console.error("PDF parsing failed; attempting bounded fallback extraction");
       return this.aggressiveExtraction(buffer);
     }
   }
-  
+
   private aggressiveExtraction(buffer: Buffer): Promise<string> {
     try {
       console.log("Attempting aggressive text extraction...");
-      
-      const text = buffer.toString('latin1');
+      const text = buffer.toString("latin1");
       const results: string[] = [];
-      
-      // Extract anything that looks like human-readable text
-      const patterns = [
-        // Email addresses
-        /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g,
-        // Phone numbers
-        /[\+]?[\d\s\-\(\)]{10,}/g,
-        // Names (capitalized words)
-        /\b[A-Z][a-z]{2,}(?:\s+[A-Z][a-z]{2,})+\b/g,
-        // Years and date ranges
-        /\b(19|20)\d{2}(?:\s*[-–]\s*(19|20)\d{2})?\b/g,
-        // Common CV section headers
-        /\b(EXPERIENCE|EDUCATION|SKILLS|PROJECTS|SUMMARY|PROFILE|CERTIFICATIONS?|ACHIEVEMENTS?|CONTACT)\b/gi,
-        // University/company patterns
-        /\b[A-Z][a-zA-Z\s&]{5,50}(?:University|College|School|Institute|Corporation|Company|Inc|Ltd|LLC)\b/gi,
-        // Job titles
-        /\b(?:Senior|Junior|Lead|Principal|Manager|Director|Engineer|Developer|Analyst|Specialist|Coordinator|Assistant)\s+[A-Z][a-zA-Z\s]{2,30}\b/g,
-        // Skills and technologies
-        /\b(?:JavaScript|Python|Java|React|Node\.js|SQL|HTML|CSS|AWS|Docker|Git|Linux|Windows|Microsoft|Adobe|Photoshop|Excel|PowerPoint)\b/gi,
-        // Longer meaningful text chunks
-        /\b[A-Z][a-zA-Z\s,.]{15,100}\b/g
-      ];
-      
-      for (const pattern of patterns) {
+
+      for (const pattern of AGGRESSIVE_PATTERNS) {
         const matches = text.match(pattern);
         if (matches) {
           results.push(...matches);
         }
       }
-      
-      // Remove duplicates and clean
-      const uniqueResults = [...new Set(results)]
-        .filter(item => 
-          item.length > 3 && 
-          !item.match(/\b(obj|endobj|stream|StructParent|QuadPoints)\b/i)
+
+      const uniqueResults = Array.from(new Set(results))
+        .filter(
+          (item) =>
+            item.length > 3 &&
+            !/\b(?:obj|endobj|stream|StructParent|QuadPoints)\b/i.test(item),
         )
-        .join(' ')
-        .replace(/\s+/g, ' ')
+        .join(" ")
+        .replace(/\s+/g, " ")
         .trim();
-      
+
       if (uniqueResults.length > 100) {
-        console.log(`Aggressive extraction found content: ${uniqueResults.length} characters`);
-        console.log("Aggressive sample:", uniqueResults.substring(0, 200));
+        logInfoEvent("pdf_fallback_text_extracted", {
+          characterCount: uniqueResults.length,
+        });
         return Promise.resolve(uniqueResults);
       }
-      
+
       console.log("All extraction methods exhausted - PDF may be image-based");
       return Promise.resolve(this.generateDemoContent());
-      
-    } catch (error) {
-      console.error("Aggressive extraction failed:", error);
+    } catch {
+      console.error("Aggressive PDF extraction failed");
       return Promise.resolve(this.generateDemoContent());
     }
   }
@@ -348,8 +478,11 @@ CERTIFICATIONS
     // Select profile randomly to provide variety
     const profile = demoProfiles[Math.floor(Math.random() * demoProfiles.length)];
     
-    console.log(`Generated comprehensive demo CV for ${profile.name} (${profile.content.trim().length} characters)`);
-    return profile.content.trim();
+    const content = profile.content.trim();
+    logInfoEvent("pdf_demo_content_generated", {
+      characterCount: content.length,
+    });
+    return content;
   }
 }
 

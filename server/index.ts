@@ -2,16 +2,15 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
+import { sanitizeForLog } from "./security";
 
 // Environment validation
 function validateEnvironment() {
   const requiredEnvVars = {
     'OPENAI_API_KEY': process.env.OPENAI_API_KEY,
-    'DATABASE_URL': process.env.DATABASE_URL
-  };
-
-  const optionalEnvVars = {
-    'ELEVENLABS_API_KEY': process.env.ELEVENLABS_API_KEY
+    'DATABASE_URL': process.env.DATABASE_URL,
+    'ELEVENLABS_API_KEY': process.env.ELEVENLABS_API_KEY,
+    'SESSION_SECRET': process.env.SESSION_SECRET,
   };
 
   const missing = Object.entries(requiredEnvVars)
@@ -25,18 +24,6 @@ function validateEnvironment() {
   }
 
   console.log('✅ All required environment variables are set');
-  
-  // Check optional variables
-  const missingOptional = Object.entries(optionalEnvVars)
-    .filter(([key, value]) => !value)
-    .map(([key]) => key);
-    
-  if (missingOptional.length > 0) {
-    console.log('⚠️  Optional environment variables missing (will use fallbacks):', missingOptional.join(', '));
-    console.log('📝 Note: ElevenLabs functionality will use mock audio until API key is properly loaded');
-  } else {
-    console.log('✅ ElevenLabs API key is available for voice generation');
-  }
 }
 
 // Set NODE_ENV to production if not already set in production environment
@@ -50,40 +37,11 @@ console.log(`🚀 Starting application in ${process.env.NODE_ENV} mode`);
 validateEnvironment();
 
 const app = express();
-
-// AI Detection endpoint (before all middleware)
-import { mlAiDetectorService } from "./services/mlAiDetector";
-app.post("/api/ai-detect", express.json(), async (req, res) => {
-  try {
-    console.log('=== AI Detection API Called (No Middleware) ===');
-    const { text } = req.body;
-    
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ message: "Text is required for AI detection" });
-    }
-
-    if (text.length < 10) {
-      return res.status(400).json({ message: "Text too short for reliable detection (minimum 10 characters)" });
-    }
-
-    console.log(`Processing text (${text.length} chars):`, text.substring(0, 100) + '...');
-
-    const result = await mlAiDetectorService.detectAIText(text);
-    console.log('ML AI Detection result:', result);
-
-    res.json({
-      probability: result.probability,
-      label: result.label,
-      confidence: result.confidence,
-      analysis: result.miraAnalysis,
-      textLength: text.length
-    });
-
-  } catch (error) {
-    console.error("AI Detection error (no middleware):", error);
-    res.status(500).json({ message: "Failed to analyze text for AI detection" });
-  }
-});
+if (process.env.NODE_ENV === 'production') {
+  // The deployment has one trusted reverse-proxy hop; this keeps secure
+  // cookies and per-client rate limits tied to the originating connection.
+  app.set('trust proxy', 1);
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -114,7 +72,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      log(sanitizeForLog(logLine, 80));
     }
   });
 

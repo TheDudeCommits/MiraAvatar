@@ -1,6 +1,6 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -141,7 +141,7 @@ export const insertSessionMessageSchema = createInsertSchema(sessionMessages).pi
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type UserAccount = typeof userAccounts.$inferSelect;
-export type InsertUserAccount = z.infer<typeof insertUserAccountSchema>;
+export type InsertUserAccount = typeof userAccounts.$inferInsert;
 export type CvAnalysis = typeof cvAnalyses.$inferSelect;
 export type InsertCvAnalysis = z.infer<typeof insertCvAnalysisSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
@@ -151,4 +151,4 @@ export type InsertVoiceSession = z.infer<typeof insertVoiceSessionSchema>;
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
 export type SessionMessage = typeof sessionMessages.$inferSelect;
-export type InsertSessionMessage = z.infer<typeof insertSessionMessageSchema>;
+export type InsertSessionMessage = typeof sessionMessages.$inferInsert;
