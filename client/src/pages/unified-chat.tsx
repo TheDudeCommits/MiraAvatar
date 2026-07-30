@@ -192,7 +192,7 @@ export default function UnifiedChat() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('WebSocket message received:', data);
+          console.log('WebSocket message received');
           handleWebSocketMessage(data);
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
@@ -322,17 +322,17 @@ export default function UnifiedChat() {
 
   // Handle WebSocket messages
   const handleWebSocketMessage = (data: any) => {
-    console.log('Handling WebSocket message:', data.type);
+    console.log('Handling WebSocket message');
 
     switch (data.type) {
       case 'session_started':
-        console.log('Session started:', data.sessionId);
+        console.log('Voice session started');
         setSessionId(data.sessionId);
         setIsConnected(true);
         break;
 
       case 'transcription_complete':
-        console.log('Transcription received:', data.transcription);
+        console.log('Voice transcription received');
         // Store transcription for MIRA mode
         setCurrentTranscription(data.transcription);
         // Add user message with transcription
@@ -362,7 +362,7 @@ export default function UnifiedChat() {
         setMessages(prev => [...prev, newMessage]);
 
         if (data.audioUrl) {
-          console.log('Playing audio from WebSocket response:', data.audioUrl);
+          console.log('Playing WebSocket audio response');
           
           // Handle MIRA mode with synchronized video-audio playback
           if (interactionMode === 'mira' && miraRef.current) {
@@ -393,15 +393,15 @@ export default function UnifiedChat() {
         break;
 
       case 'processing_step':
-        console.log('Processing step:', data.step, '-', data.message);
+        console.log('Voice processing step received');
         break;
 
       case 'processing':
-        console.log('Processing started:', data.message);
+        console.log('Voice processing started');
         break;
 
       case 'error':
-        console.error('WebSocket error:', data.message);
+        console.error('WebSocket processing failed');
         setIsProcessing(false);
         toast({
           title: "Voice Processing Error",
@@ -411,7 +411,7 @@ export default function UnifiedChat() {
         break;
 
       default:
-        console.log('Unknown WebSocket message type:', data.type);
+        console.log('Unknown WebSocket message type received');
     }
   };
 
@@ -457,7 +457,7 @@ export default function UnifiedChat() {
 
   // Play audio response
   const playAudio = (audioUrl: string) => {
-    console.log('Starting audio playback for:', audioUrl);
+    console.log('Starting audio playback');
     
     // Stop any currently playing audio
     if (currentAudioRef.current) {

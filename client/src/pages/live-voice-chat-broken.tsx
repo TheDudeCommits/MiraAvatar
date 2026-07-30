@@ -88,7 +88,7 @@ export default function LiveVoiceChat() {
       switch (data.type) {
         case 'session_started':
           setSessionId(data.sessionId);
-          console.log('Session started:', data.sessionId);
+          console.log('Voice session started');
           break;
           
         case 'processing':

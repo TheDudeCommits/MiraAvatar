@@ -1,11 +1,24 @@
-import OpenAI from "openai";
-import fs from "fs";
-import path from "path";
-import { Readable } from "stream";
+import OpenAI, { toFile } from "openai";
+
+const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || ""
 });
+
+export async function createAudioUpload(audioData: Buffer): Promise<File> {
+  if (
+    !Buffer.isBuffer(audioData) ||
+    audioData.length === 0 ||
+    audioData.length > MAX_AUDIO_UPLOAD_BYTES
+  ) {
+    throw new Error("Audio upload has an invalid size");
+  }
+
+  // The OpenAI SDK creates an in-memory File. The fixed name and MIME type are
+  // controlled locally, and no request bytes are written to a temporary path.
+  return toFile(audioData, "audio.wav", { type: "audio/wav" });
+}
 
 export interface CVAnalysisResult {
   strengths: string[];
@@ -146,7 +159,7 @@ Your primary focus is helping users with their needs.
   async processVoiceInput(audioData: Buffer): Promise<{ text: string; response: string; audioUrl: string }> {
     try {
       // Create file-like object for OpenAI
-      const audioFile = this.createAudioFile(audioData, "audio.wav");
+      const audioFile = await createAudioUpload(audioData);
       
       // First, transcribe the audio input using OpenAI Whisper (optimized)
       const transcription = await openai.audio.transcriptions.create({
@@ -200,7 +213,7 @@ Your primary focus is helping users with their needs.
   // Transcribe audio for real-time chat (OPTIMIZED)
   async transcribeAudio(audioData: Buffer): Promise<{ text: string }> {
     try {
-      const audioFile = this.createAudioFile(audioData, "audio.wav");
+      const audioFile = await createAudioUpload(audioData);
       
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
@@ -270,44 +283,6 @@ Your primary focus is helping users with their needs.
       throw new Error(`Failed to chat with context: ${error}`);
     }
   }
-
-  // Helper method to create File-like object for Node.js
-  private createAudioFile(audioData: Buffer, filename: string): any {
-    try {
-      // Create a temporary file path
-      const tempDir = path.join(process.cwd(), 'temp');
-      if (!fs.existsSync(tempDir)) {
-        fs.mkdirSync(tempDir, { recursive: true });
-      }
-      
-      const tempFilePath = path.join(tempDir, `${Date.now()}_${filename}`);
-      fs.writeFileSync(tempFilePath, audioData);
-      
-      // Create a readable stream for the file
-      const fileStream = fs.createReadStream(tempFilePath);
-      
-      // Add cleanup after stream ends
-      fileStream.on('end', () => {
-        setTimeout(() => {
-          try {
-            fs.unlinkSync(tempFilePath);
-          } catch (err) {
-            console.log('Error cleaning up temp file:', err);
-          }
-        }, 1000);
-      });
-      
-      return fileStream;
-    } catch (error) {
-      console.error('Error creating audio file:', error);
-      // Fallback: create a stream directly from buffer
-      const stream = new Readable();
-      stream.push(audioData);
-      stream.push(null);
-      return stream;
-    }
-  }
-
 
 }
 

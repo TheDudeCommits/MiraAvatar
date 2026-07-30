@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { logErrorEvent, logInfoEvent } from '../security';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,12 +15,13 @@ export interface AIDetectionResult {
 
 export class MLAIDetectorService {
   async detectAIText(inputText: string): Promise<AIDetectionResult> {
-    console.log('=== ML AI Detection Starting ===');
-    console.log('Input text preview:', inputText.substring(0, 100) + '...');
+    logInfoEvent('ml_ai_detection_started', {
+      characterCount: inputText.length,
+    });
     
     // Call Python ML model
     const mlResult = await this.callPythonMLModel(inputText);
-    console.log('ML Model result:', mlResult);
+    logInfoEvent('ml_ai_detection_completed');
     
     // Generate Mira's cyberpunk analysis
     const miraAnalysis = this.generateMiraAnalysis(inputText, mlResult.probability, mlResult.label);
@@ -35,7 +37,7 @@ export class MLAIDetectorService {
   private async callPythonMLModel(text: string): Promise<{probability: number, label: 'AI Generated' | 'Human Written', confidence: number}> {
     return new Promise((resolve, reject) => {
       const pythonScript = path.join(__dirname, 'ai-detector.py');
-      console.log('Calling Python ML model script:', pythonScript);
+      logInfoEvent('ml_model_process_starting');
       
       const pythonProcess = spawn('python3', [pythonScript], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -48,7 +50,6 @@ export class MLAIDetectorService {
       });
 
       let output = '';
-      let errorOutput = '';
 
       // Send text to Python
       pythonProcess.stdin.write(text);
@@ -58,36 +59,32 @@ export class MLAIDetectorService {
         output += data.toString();
       });
 
-      pythonProcess.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
+      pythonProcess.stderr.resume();
 
       pythonProcess.on('close', (code) => {
-        console.log('Python ML model process closed with code:', code);
+        logInfoEvent('ml_model_process_closed', { exitCode: code });
         
         if (code === 0) {
           try {
             const result = JSON.parse(output.trim());
-            console.log('ML model result:', result);
             resolve({
               probability: result.probability,
               label: result.label as 'AI Generated' | 'Human Written',
               confidence: result.confidence
             });
           } catch (parseError) {
-            console.error('ML model JSON parse error:', parseError);
-            console.error('Raw output:', output);
+            logErrorEvent('ml_model_output_parse_failed');
             reject(new Error('Failed to parse ML model output'));
           }
         } else {
-          console.error('ML model script failed:', errorOutput);
+          logErrorEvent('ml_model_process_failed');
           reject(new Error('ML model execution failed'));
         }
       });
 
-      pythonProcess.on('error', (error) => {
-        console.error('ML model process error:', error);
-        reject(error);
+      pythonProcess.on('error', () => {
+        logErrorEvent('ml_model_process_error');
+        reject(new Error('ML model process could not start'));
       });
     });
   }

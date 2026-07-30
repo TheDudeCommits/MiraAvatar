@@ -8,14 +8,17 @@ ws.on('open', function open() {
 });
 
 ws.on('message', function message(data) {
-  console.log('Received:', data.toString());
+  console.log(JSON.stringify({
+    event: 'websocket_message_received',
+    byteLength: data.byteLength,
+  }));
   ws.close();
 });
 
-ws.on('error', function error(err) {
-  console.error('WebSocket error:', err);
+ws.on('error', function error() {
+  console.error('WebSocket error');
 });
 
-ws.on('close', function close(code, reason) {
-  console.log('Connection closed:', code, reason.toString());
+ws.on('close', function close(code) {
+  console.log(JSON.stringify({ event: 'websocket_closed', code }));
 });

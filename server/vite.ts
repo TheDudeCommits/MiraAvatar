@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "fs";
 import path from "path";
 import { type Server } from "http";
-import { staticRateLimiter } from "./security";
+import { sanitizeForLog, staticRateLimiter } from "./security";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -13,7 +13,14 @@ export function log(message: string, source = "express") {
     hour12: true,
   });
 
-  console.log(`${formattedTime} [${source}] ${message}`);
+  console.log(
+    JSON.stringify({
+      event: "server_log",
+      time: formattedTime,
+      source: sanitizeForLog(source, 32),
+      message: sanitizeForLog(message, 200),
+    }),
+  );
 }
 
 export async function setupVite(app: Express, server: Server) {
